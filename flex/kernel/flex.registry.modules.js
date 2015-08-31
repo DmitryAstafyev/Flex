@@ -1,4 +1,4 @@
-﻿/// <reference path="flex.core.js" />
+/// <reference path="flex.core.js" />
 /*global flex*/
 /// <module>
 ///     <summary>

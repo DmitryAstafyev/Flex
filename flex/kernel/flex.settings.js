@@ -1,4 +1,4 @@
-﻿/// <module>
+/// <module>
 ///     <summary>
 ///         Settings of [flex].
 ///     </summary>
@@ -14,7 +14,11 @@
                         'flex.ui.templates',
                         'flex.ui.scrollbox',
                         'flex.program'
-                    ]
+                    ],
+                    EXTERNAL: [
+                        { url: '/program/highlight/highlight.pack.js', hash: 'TESTHASHPROPERTY' },
+                        { url: '/program/highlight/styles/default.css', hash: 'TESTHASHPROPERTY' }
+]
                 },
                 paths   : {
                     CORE: '/kernel'

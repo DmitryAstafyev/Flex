@@ -1,4 +1,4 @@
-﻿// LICENSE
+// LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
 /// <reference path="flex.registry.modules.js" />
@@ -415,7 +415,7 @@
                                 }
                                 return value;
                             };
-                            if (typeof something === 'function') {
+                            if (typeof something === 'function' && !something.length) {
                                 something = something();
                             }
                             something = getValue(something);

@@ -18,7 +18,7 @@
         Flex.prototype = (function () {
             var information = {
                     name    : "Flex::: web tools",
-                    version : "0.08",
+                    version : "0.10",
                     author  : "Dmitry Astafyev",
                 },
                 config      = {},
@@ -29,6 +29,7 @@
                 oop         = {},
                 privates    = {},
                 modules     = {},
+                external    = {},
                 overhead    = {},
                 parsing     = {},
                 system      = {},
@@ -38,7 +39,8 @@
                 defaults : {
                     resources   :{
                         USE_STORAGED    : { type: 'boolean',    value: true         },
-                        MODULES         : { type: 'array',      value: []           }
+                        MODULES         : { type: 'array',      value: []           },
+                        EXTERNAL        : { type: 'array',      value: []           }
                     },
                     paths       : {
                         CORE            : { type: 'string',     value: '/kernel'    }
@@ -111,6 +113,7 @@
                     GROUP               : 'flex.core',
                     RESOURCES_JOURNAL   : 'flex.modules.resources.journal',
                     MODULES_HISTROY     : 'flex.modules.history',
+                    EXTERNAL_HISTROY    : 'flex.external.history',
                     DEFAULT_CONFIG      : 'flex.defualt.config',
                     DEFAULT_CONFIG_FLAG : 'flex.defualt.config.flag',
                 },
@@ -121,8 +124,9 @@
                     }
                 },
                 registry: {
-                    EVENTS  : 'flex.registry.events.js',
-                    MODULES : 'flex.registry.modules.js'
+                    EVENTS      : 'flex.registry.events.js',
+                    MODULES     : 'flex.registry.modules.js',
+                    SETTINGS    : 'flex.settings.js'
                 }
             };
             registry = {
@@ -1280,7 +1284,7 @@
                             storage[name] = 'done';
                         }
                         if (modules.history.isReady() !== false) {
-                            system.handle(config.defaults.events.finish, null, 'onFinishLoadModules', this);
+                            external.preload();
                         }
                     },
                     isReady : function () {
@@ -1303,6 +1307,236 @@
                         return (library.indexOf('libraries.') === -1 ? 'flex.libraries.' + library : 'flex.' + library);
                     }
                 }
+            };
+            external = {
+                preload     : function () {
+                    var resources = config.defaults.resources.EXTERNAL;
+                    if (resources instanceof Array) {
+                        if (resources.length > 0) {
+                            external.history.add(resources.map(function (resource) { return resource.url;}));
+                            Array.prototype.forEach.call(
+                                resources,
+                                function (resource) {
+                                    if (oop.objects.validate(resource, [{ name: 'url',  type: 'string'                  },
+                                                                        { name: 'hash', type: 'string', value: 'no_hash'}]) !== false) {
+                                        external.repository.call(resource.url, resource.hash);
+                                    }
+                                }
+                            );
+                        } else {
+                            external.history.done('no_resources');
+                        }
+                    } else {
+                        external.history.done('no_resources');
+                    }
+                },
+                embody      : function (parameters) {
+                    function JS(content, url) {
+                        var wrapper = null;
+                        if (config.defaults.resources.USE_STORAGED === false) {
+                            system.resources.js.connect(url, null, null);
+                        } else {
+                            wrapper = new Function(content);
+                            try {
+                                wrapper.call(window);
+                                return true;
+                            } catch (e) {
+                                logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
+                                return false;
+                            }
+                        }
+                    };
+                    function CSS(content, url) {
+                        if (config.defaults.resources.USE_STORAGED === false) {
+                            system.resources.css.connect(url, null, null);
+                        } else {
+                            system.resources.css.adoption(content);
+                        }
+                        return true;
+                    };
+                    /// <summary>
+                    /// Try to initialize external resource
+                    /// </summary>
+                    /// <param name="parameters" type="Object">Object of resource:  &#13;&#10;
+                    /// {   [string]    url,                                        &#13;&#10;
+                    ///     [string]    body,                                       &#13;&#10;
+                    ///     [string]    hash                                        &#13;&#10;
+                    /// }</param>
+                    /// <returns type="boolean">true if success and false if not</returns>
+                    var regs    = options.regs.resources,
+                        Embody  = null;
+                    if (parameters.url.search(regs.JS) !== -1) {
+                        Embody = JS;
+                    } else if (parameters.url.search(regs.CSS) !== -1) {
+                        Embody = CSS;
+                    }
+                    if (Embody !== null) {
+                        if (Embody(parameters.body, parameters.url) !== false) {
+                            external.history.done(parameters.url);
+                        }
+                    }
+                },
+                repository  : {
+                    add     : function (parameters) {
+                        /// <summary>
+                        /// Add resource into repository
+                        /// </summary>
+                        /// <param name="parameters" type="Object">Object of module:    &#13;&#10;
+                        /// {   [string]    url,                                        &#13;&#10;
+                        ///     [string]    body,                                       &#13;&#10;
+                        ///     [string]    hash                                        &#13;&#10;
+                        /// }</param>
+                        /// <returns type="boolean">true if success and false if not</returns>
+                        var hash = external.repository.getHash(parameters.url);
+                        if (hash !== parameters.hash && config.defaults.resources.USE_STORAGED !== false) {
+                            return system.localStorage.set(
+                                parameters.url,
+                                JSON.stringify(
+                                    {
+                                        body: parameters.body,
+                                        hash: parameters.hash
+                                    }
+                                ),
+                                true
+                            );
+                        }
+                        return null;
+                    },
+                    get     : function (url, hash) {
+                        /// <summary>
+                        /// Get resource from repository
+                        /// </summary>
+                        /// <param name="url"   type="string">URL of resource</param>
+                        /// <param name="hash"  type="string">Control hash for resource</param>
+                        /// <returns type="object">Value of resource if success and NULL if not</returns>
+                        var localStorage    = system.localStorage,
+                            storaged        = localStorage.get(url, true);
+                        if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
+                            try {
+                                storaged = JSON.parse(storaged);
+                                if (storaged.hash === hash) {
+                                    return storaged;
+                                } else {
+                                    localStorage.del(url);
+                                    return null;
+                                }
+                            } catch (e) {
+                                localStorage.del(url);
+                                return null;
+                            }
+                        }
+                        return null;
+                    },
+                    getHash : function (url) {
+                        /// <summary>
+                        /// Returns hash of resource from repository
+                        /// </summary>
+                        /// <param name="url" type="string">URL of resource</param>
+                        /// <returns type="string">Value of hash</returns>
+                        var localStorage    = system.localStorage,
+                            storaged        = localStorage.get(url, true);
+                        if (storaged !== null) {
+                            try {
+                                storaged = JSON.parse(storaged);
+                                return storaged.hash;
+                            } catch (e) {
+                                return null;
+                            }
+                        }
+                        return null;
+                    },
+                    call    : function (url, hash) {
+                        /// <summary>
+                        /// Try find resource in repository and load it if necessary 
+                        /// </summary>
+                        /// <param name="url"   type="string">URL of resource</param>
+                        /// <param name="hash"  type="string">Control hash for resource</param>
+                        /// <returns type="void">void</returns>
+                        var repository = external.repository.get(url, hash);
+                        if (repository !== null) {
+                            if (repository.hash === hash) {
+                                external.embody({
+                                    url : url,
+                                    hash: hash,
+                                    body: repository.body
+                                });
+                            } else {
+                                external.loader.load(url, hash, true);
+                            }
+                        } else {
+                            external.loader.load(url, hash, true);
+                        }
+                    }
+                },
+                loader: {
+                    load    : function (url, hash, embody) {
+                        var request = ajax.create(
+                            null,
+                            url,
+                            'get',
+                            null,
+                            {
+                                success : function (response, request) {
+                                    external.loader.success(url, response, hash, embody);
+                                },
+                                fail: function (response, request) {
+                                    external.loader.fail(request, url, response, hash);
+                                }
+                            },
+                            null
+                        );
+                        request.send();
+                    },
+                    success : function (url, response, hash, embody) {
+                        external.repository.add({
+                            url : url,
+                            hash: hash,
+                            body: response.original
+                        });
+                        if (embody === true) {
+                            external.embody({
+                                url : url,
+                                hash: hash,
+                                body: response.original
+                            });
+                        }
+                    },
+                    fail    : function (request, url, response, hash) {
+                        logs.log('Cannot load resource: [' + url + '].', logs.types.CRITICAL);
+                    }
+                },
+                history: {
+                    add     : function (urls) {
+                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.EXTERNAL_HISTROY, {}),
+                            urls    = urls instanceof Array ? urls : [urls];
+                        Array.prototype.forEach.call(
+                            urls,
+                            function (url) {
+                                if (storage[url] === undefined) {
+                                    storage[url] = 'wait';
+                                }
+                            }
+                        );
+                    },
+                    done    : function (url) {
+                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.EXTERNAL_HISTROY, {});
+                        if (storage[url] !== undefined) {
+                            storage[url] = 'done';
+                        }
+                        if (external.history.isReady() !== false) {
+                            system.handle(config.defaults.events.finish, null, 'onFinishLoadExternal', this);
+                        }
+                    },
+                    isReady : function () {
+                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.EXTERNAL_HISTROY, {});
+                        for (var key in storage) {
+                            if (storage[key] !== 'done') {
+                                return false;
+                            }
+                        }
+                        return true;
+                    }
+                },
             };
             parsing = {
                 js  : {
