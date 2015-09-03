@@ -112,6 +112,7 @@
                 storage : {
                     GROUP               : 'flex.core',
                     RESOURCES_JOURNAL   : 'flex.modules.resources.journal',
+                    RESOURCES_HISTORY   : 'flex.modules.resources.history',
                     MODULES_HISTROY     : 'flex.modules.history',
                     EXTERNAL_HISTROY    : 'flex.external.history',
                     DEFAULT_CONFIG      : 'flex.defualt.config',
@@ -1032,12 +1033,17 @@
                                         makeConstructor(constructor_storage, parameters.name);
                                         //Check references of this library
                                         modules.reference.check(parameters.name);
-                                        //Restart references of pending libraries
-                                        modules.reference.pending();
-                                        //Check resources of module
-                                        modules.resources.check(parameters.name);
-                                        //Mark as done
-                                        modules.history.done(parameters.name);
+                                        //Check resources of module and continue after resources will be loaded
+                                        modules.resources.check(
+                                            parameters.name,
+                                            parameters.resources,
+                                            function () {
+                                                //Restart references of pending libraries
+                                                modules.reference.pending();
+                                                //Mark as done
+                                                modules.history.done(parameters.name);
+                                            }
+                                        );
                                         return true;
                                     }
                                 }
@@ -1046,34 +1052,96 @@
                         return false;
                     }
                 },
-                resources   : {
-                    check   : function (name) {
-                        function validate(resources) {
-                            var valid = [];
-                            Array.prototype.forEach.call(
-                                resources,
-                                function (resource) {
-                                    if (typeof resource === 'string') {
-                                        valid.push({
-                                            url     : resource,
-                                            hash    : settings.hash
-                                        });
+                resources: {
+                    registry    : {
+                        add     : function (name, resources, callback) {
+                            var history = overhead.globaly.get(options.storage.GROUP, options.storage.RESOURCES_HISTORY, {});
+                            if (!history[name]) {
+                                history[name] = {
+                                    resources   : resources.map(function (resource) { return resource.url; }),
+                                    callback    : callback
+                                };
+                            }
+                        },
+                        done    : function (name, url) {
+                            var history = overhead.globaly.get(options.storage.GROUP, options.storage.RESOURCES_HISTORY, {});
+                            if (history[name]) {
+                                if (history[name].resources.indexOf(url) !== -1) {
+                                    history[name].resources.splice(history[name].resources.indexOf(url), 1);
+                                }
+                                if (modules.resources.registry.isReady(name) !== false) {
+                                    history[name].callback();
+                                    history[name] = null;
+                                    delete history[name];
+                                }
+                            }
+                        },
+                        isReady : function (name) {
+                            var history = overhead.globaly.get(options.storage.GROUP, options.storage.RESOURCES_HISTORY, {});
+                            if (history[name]) {
+                                return history[name].resources.length > 0 ? false : true;
+                            }
+                            return true;
+                        }
+                    },
+                    loader: {
+                        load    : function (url, hash) {
+                            var request = ajax.create(
+                                null,
+                                url,
+                                'get',
+                                null,
+                                {
+                                    success: function (response, request) {
+                                        modules.resources.loader.success(url, response, hash);
+                                    },
+                                    fail: function (response, request) {
+                                        modules.resources.loader.fail(request, url, response, hash);
                                     }
+                                },
+                                null
+                            );
+                            request.send();
+                        },
+                        success : function (url, response, hash) {
+                            system.localStorage.setJSON(
+                                url,
+                                {
+                                    value   : response.original,
+                                    url     : url,
+                                    hash    : hash
                                 }
                             );
-                            return valid;
-                        };
+                        },
+                        fail    : function (request, url, response, hash) {
+                            logs.log('Cannot load resource: [' + url + ']. Resource will be attached.', logs.types.WARNING);
+                        }
+                    },
+                    check   : function (name, resources, callback) {
                         var settings    = modules.registry.getSettings(name),
                             repository  = null;
                         if (settings !== null) {
-                            if (settings.resources) {
-                                //Validate resources links
-                                if (typeof settings.resources === 'string') {
-                                    settings.resources = [settings.resources];
+                            if (resources !== null) {
+                                if (!(resources instanceof Array)) {
+                                    resources = [resources];
                                 }
-                                settings.resources = validate(settings.resources);
-                                //Try get resources
-                                modules.resources.get(settings.resources, name);
+                                if (resources.length > 0) {
+                                    //Validate resources links
+                                    resources = resources.map(function (resource) {
+                                        if (typeof resource.url === 'string') {
+                                            return {
+                                                url: resource.url,
+                                                hash: settings.hash
+                                            }
+                                        }
+                                    });
+                                    //Registry resources of module
+                                    modules.resources.registry.add(name, resources, callback);
+                                    //Try get resources
+                                    modules.resources.get(resources, name);
+                                } else {
+                                    callback();
+                                }
                             }
                         }
                     },
@@ -1083,60 +1151,65 @@
                             resources,
                             function (resource) {
                                 if (!journal[resource.url]) {
-                                    modules.resources.load(resource);
+                                    modules.resources.load(name, resource);
                                     journal[resource.url] = name;
                                 }
                             }
                         );
                     },
-                    load    : function (resource) {
-                        function restore(resource) {
-                            //Resource: CSS
+                    load    : function (name, resource) {
+                        function restore(name, resource) {
+                            var wrapper = null;
                             if (resource.url.search(regs.CSS) !== -1) {
+                                //Resource: CSS
                                 system.resources.css.adoption(resource.value);
+                            } else if (resource.url.search(regs.JS) !== -1) {
+                                //Resource: JS
+                                wrapper = new Function(resource.value);
+                                try {
+                                    wrapper.call(window);
+                                } catch (e) {
+                                    logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
+                                }
                             }
+                            modules.resources.registry.done(name, resource.url);
                         };
-                        function reload(resource) {
-                            //Resource: CSS
+                        function reload(name, resource) {
                             if (resource.url.search(regs.CSS) !== -1) {
+                                //Resource: CSS
                                 system.resources.css.connect(
                                     resource.url,
                                     function () {
-                                        modules.resources.save.css(resource);
+                                        modules.resources.registry.done(name, resource.url);
+                                    },
+                                    null
+                                );
+                            } else if (resource.url.search(regs.JS) !== -1) {
+                                //Resource: JS
+                                system.resources.js.connect(
+                                    resource.url,
+                                    function () {
+                                        modules.resources.registry.done(name, resource.url);
                                     },
                                     null
                                 );
                             }
+                            //Try get same resources and cache it
+                            modules.resources.loader.load(resource.url, resource.hash);
                         };
                         var localStorage    = system.localStorage,
                             storaged        = localStorage.getJSON(resource.url),
                             regs            = options.regs.resources;
                         if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                             if (resource.hash === storaged.hash) {
-                                restore(storaged);
+                                restore(name, storaged);
                             } else {
-                                reload(resource);
+                                reload(name, resource);
                             }
                         } else {
-                            reload(resource);
+                            reload(name, resource);
                         }
                     },
-                    save    : {
-                        css : function (resource) {
-                            var localStorage    = system.localStorage,
-                                cssText         = parsing.css.stringify(resource.url);
-                            if (cssText !== null) {
-                                localStorage.setJSON(
-                                    resource.url,
-                                    {
-                                        value   : cssText,
-                                        url     : resource.url,
-                                        hash    : resource.hash
-                                    }
-                                );
-                            }
-                        }
-                    }
                 },
                 repository  : {
                     add     : function (parameters) {
@@ -1479,7 +1552,7 @@
                                 success : function (response, request) {
                                     external.loader.success(url, response, hash, embody);
                                 },
-                                fail: function (response, request) {
+                                fail    : function (response, request) {
                                     external.loader.fail(request, url, response, hash);
                                 }
                             },
@@ -2054,7 +2127,7 @@
                 }
             };
             system = {
-                handle  : function (handle_body, handle_arguments, call_point, this_argument) {
+                handle      : function (handle_body, handle_arguments, call_point, this_argument) {
                     var handle_body         = handle_body || null,
                         handle_arguments    = handle_arguments || null,
                         call_point          = call_point || null,
@@ -2378,7 +2451,7 @@
                 }()),
             };
             logs = {
-                types : {
+                types       : {
                     CRITICAL: 'critical',
                     LOGICAL : 'logical',
                     WARNING : 'warning'

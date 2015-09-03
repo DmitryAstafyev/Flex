@@ -16,9 +16,9 @@
                         'flex.program'
                     ],
                     EXTERNAL: [
-                        { url: '/program/highlight/highlight.pack.js', hash: 'TESTHASHPROPERTY' },
-                        { url: '/program/highlight/styles/default.css', hash: 'TESTHASHPROPERTY' }
-]
+                        { url: '/kernel/body.css', hash: 'TESTHASHPROPERTY' }
+                    ],
+                    USE_STORAGED : true
                 },
                 paths   : {
                     CORE: '/kernel'
@@ -26,7 +26,7 @@
                 events  : {
                     finish: function () {
                         var program = flex.libraries.program.create();
-                        program.dynamically();
+                        program.fromLayout();
                     }
                 }
             });

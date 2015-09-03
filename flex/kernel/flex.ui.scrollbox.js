@@ -669,7 +669,10 @@
             reference       : function () {
                 flex.libraries.events   ();
                 flex.libraries.html     ();
-            }
+            },
+            resources: [
+                { url: 'kernel/css/flex.ui.scrollbox.css' }
+            ],
         });
     }
 }());
