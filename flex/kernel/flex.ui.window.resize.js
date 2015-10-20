@@ -20,6 +20,7 @@
                 //Variables
                 privates        = null,
                 render          = null,
+                coreEvents      = null,
                 settings        = null;
             settings = {
                 CONTAINER           : 'data-flex-ui-window-resize-container',
@@ -36,6 +37,8 @@
                 GLOBAL_GROUP        : 'flex-window-resize',
                 GLOBAL_EVENT_FLAG   : 'flex-window-resize-global-event',
                 GLOBAL_CURRENT      : 'flex-window-resize-global-current',
+                GLOBAL_EVENT_ID     : 'flex-window-resize-global-event-id',
+                STATE_STORAGE       : 'flex-window-resize-instance-state',
             };
             function init(id) {
                 var selector    = new html.select.bySelector(),
@@ -52,6 +55,7 @@
                                     function (hook) {
                                         var hooks = render.hooks.get(id, container, hook);
                                         render.attach(container, hooks, hook, id);
+                                        coreEvents.attach(container, id);
                                     }
                                 );
                             }
@@ -81,7 +85,7 @@
                     }
                 },
                 attach  : function (container, hooks, direction, id) {
-                    var DOMEvents = events.ClassDOMEvents();
+                    var DOMEvents = events.DOMEvents();
                     Array.prototype.forEach.call(
                         hooks,
                         function (hook) {
@@ -97,35 +101,45 @@
                     );
                 },
                 start: function (event, container, hook, direction, id) {
-                    var possition   = html.position(),
-                        scroll      = html.scroll(),
-                        sizes       = html.size(),
-                        size        = sizes.node(container),
-                        pos         = possition.byPage(container),
+                    var possition   = null,
+                        scroll      = null,
+                        sizes       = null,
+                        size        = null,
+                        pos         = null,
+                        scrl        = null;
+                    if (flex.overhead.objecty.get(container, settings.STATE_STORAGE, false, false) === false) {
+                        possition   = html.position();
+                        scroll      = html.scroll();
+                        sizes       = html.size();
+                        size        = sizes.node(container);
+                        pos         = possition.byPage(container);
                         scrl        = scroll.get(container.parentNode);
-                    flex.overhead.globaly.set(
-                        settings.GLOBAL_GROUP,
-                        settings.GLOBAL_CURRENT,
-                        {
-                            clientX     : event.flex.clientX,
-                            clientY     : event.flex.clientY,
-                            offsetX     : event.flex.offsetX,
-                            offsetY     : event.flex.offsetY,
-                            pageX       : event.flex.pageX,
-                            pageY       : event.flex.pageY,
-                            hook        : hook,
-                            direction   : direction,
-                            container   : container,
-                            id          : id,
-                            oldX        : event.flex.pageX,
-                            oldY        : event.flex.pageY,
-                            posX        : pos.left + scrl.left(),
-                            posY        : pos.top + scrl.top(),
-                            width       : size.width,
-                            height      : size.height
-                        }
-                    );
-                    return event.flex.stop();
+                        flex.overhead.globaly.set(
+                            settings.GLOBAL_GROUP,
+                            settings.GLOBAL_CURRENT,
+                            {
+                                clientX     : event.flex.clientX,
+                                clientY     : event.flex.clientY,
+                                offsetX     : event.flex.offsetX,
+                                offsetY     : event.flex.offsetY,
+                                pageX       : event.flex.pageX,
+                                pageY       : event.flex.pageY,
+                                hook        : hook,
+                                direction   : direction,
+                                container   : container,
+                                id          : id,
+                                oldX        : event.flex.pageX,
+                                oldY        : event.flex.pageY,
+                                posX        : pos.left + scrl.left(),
+                                posY        : pos.top + scrl.top(),
+                                width       : size.width,
+                                height      : size.height
+                            }
+                        );
+                        return event.flex.stop();
+                    } else {
+                        return true;
+                    }
                 },
                 move    : function(event){
                     var instance    = flex.overhead.globaly.get(settings.GLOBAL_GROUP, settings.GLOBAL_CURRENT),
@@ -166,9 +180,9 @@
                         setTimeout(
                             function () {
                                 flex.events.core.fire(
-                                    flex.registry.events.ui.scrollbox.GROUP,
-                                    flex.registry.events.ui.scrollbox.REFRESH_BY_PARENT,
-                                    container
+                                    flex.registry.events.ui.window.resize.GROUP,
+                                    flex.registry.events.ui.window.resize.REFRESH,
+                                    { container: instance.container, id: instance.id }
                                 );
                             },
                             10
@@ -177,33 +191,78 @@
                     return event.flex.stop();
                 },
                 stop    : function(event) {
+                    var instance = flex.overhead.globaly.get(settings.GLOBAL_GROUP, settings.GLOBAL_CURRENT);
+                    if (instance !== null) {
+                        flex.events.core.fire(
+                            flex.registry.events.ui.window.resize.GROUP,
+                            flex.registry.events.ui.window.resize.FINISH,
+                            { container: instance.container, id: instance.id }
+                        );
+                    }
                     flex.overhead.globaly.del(settings.GLOBAL_GROUP, settings.GLOBAL_CURRENT);
                 },
                 global: {
                     attach: function () {
                         var isAttached  = flex.overhead.globaly.get(settings.GLOBAL_GROUP, settings.GLOBAL_EVENT_FLAG),
-                            DOMEvents   = events.ClassDOMEvents();;
+                            DOMEvents   = events.DOMEvents();
                         if (isAttached !== true) {
                             flex.overhead.globaly.set(settings.GLOBAL_GROUP, settings.GLOBAL_EVENT_FLAG, true);
-                            flex.events.DOM.add(
+                            DOMEvents.add(
                                 window,
                                 'mousemove',
                                 function (event) {
-                                    render.move(DOMEvents.unify(event));
-                                }
+                                    render.move(event);
+                                },
+                                settings.GLOBAL_EVENT_ID
                             );
-                            flex.events.DOM.add(
+                            DOMEvents.add(
                                 window,
                                 'mouseup',
                                 function (event) {
-                                    render.stop(DOMEvents.unify(event));
-                                }
+                                    render.stop(event);
+                                },
+                                settings.GLOBAL_EVENT_ID
                             );
                         }
                     }
                 }
             };
-            privates    = {
+            coreEvents      = {
+                attach: function (container, id) {
+                    flex.events.core.listen(
+                        flex.registry.events.ui.window.maximize.GROUP,
+                        flex.registry.events.ui.window.maximize.MAXIMIZED,
+                        function (params) {
+                            return coreEvents.onRefreshByParent(params.container, container, flex.registry.events.ui.window.maximize.MAXIMIZED);
+                        },
+                        settings.STATE_STORAGE + id,
+                        false
+                    );
+                    flex.events.core.listen(
+                        flex.registry.events.ui.window.maximize.GROUP,
+                        flex.registry.events.ui.window.maximize.RESTORED,
+                        function (params) {
+                            return coreEvents.onRefreshByParent(params.container, container, flex.registry.events.ui.window.maximize.RESTORED);
+                        },
+                        settings.STATE_STORAGE + id,
+                        false
+                    );
+                },
+                onRefreshByParent: function (parent, container, state) {
+                    if (parent === container) {
+                        switch (state) {
+                            case flex.registry.events.ui.window.maximize.MAXIMIZED:
+                                flex.overhead.objecty.set(container, settings.STATE_STORAGE, true, true);
+                                break;
+                            case flex.registry.events.ui.window.maximize.RESTORED:
+                                flex.overhead.objecty.set(container, settings.STATE_STORAGE, false, true);
+                                break;
+                        }
+                    }
+                    return false;
+                }
+            };
+            privates = {
                 init : init
             };
             render.global.attach();

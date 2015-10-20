@@ -27,6 +27,28 @@
                 privates        = null,
                 settings        = null;
             settings = {
+                /*Template of scroll area
+                <div data-flex-ui-scrollbox="Container">
+                    <div data-flex-ui-scrollbox="Content">
+                    </div>
+                    <div data-flex-ui-scrollbox="Tracks.Horizontal">
+                        <div data-flex-ui-scrollbox="Tracks.Horizontal.Button.Left">
+                        </div>
+                        <div data-flex-ui-scrollbox="Tracks.Horizontal.Button.Right">
+                        </div>
+                        <div data-flex-ui-scrollbox="Tracks.Horizontal.Button.Runner">
+                        </div>
+                    </div>
+                    <div data-flex-ui-scrollbox="Tracks.Vertical">
+                        <div data-flex-ui-scrollbox="Tracks.Vertical.Button.Top">
+                        </div>
+                        <div data-flex-ui-scrollbox="Tracks.Vertical.Button.Bottom">
+                        </div>
+                        <div data-flex-ui-scrollbox="Tracks.Vertical.Button.Runner">
+                        </div>
+                    </div>
+                </div>
+                * */
                 layouts     : {
                     BOX     : {
                         container   : { node: 'DIV', attrs: [{name: 'data-flex-ui-scrollbox', value: 'Container'},{name: 'data-flex-ui-scrollbox-id', value: 'id'}] },
@@ -69,13 +91,14 @@
                 },
                 parameters  : {
                     BUTTONS_FADE_DISTANCE   : 1.1, //from size of button
-                    TRACK_FADE_DURATION     : 3000, //ms
+                    TRACK_FADE_DURATION     : 3000, //ms,
+                    GLOBAL_EVENT_ID         : 'flex-ui-scroll-box-id'
                 }
             };
             initializer = {
                 validate : {
                     parameters  : function (parameters) {
-                        return flex.oop.objects.validate(parameters, [  { name: 'parent',               type: ['node', 'string'],   value: null             },
+                        return flex.oop.objects.validate(parameters, [  { name: 'parent',               type: ['node', 'string'],   value: null, handle: html.helpers.validateNode      },
                                                                         { name: 'events',               type: 'object',             value: {}               },
                                                                         { name: 'id',                   type: 'string',             value: flex.unique()    },
                                                                         { name: 'visibility',           type: 'object',             value: { vertical: 'auto',  horizontal: 'auto'      } },
@@ -98,8 +121,8 @@
                     if (initializer.validate.parameters(parameters) !== null) {
                         initializer.validate.visibility (parameters.visibility  );
                         initializer.validate.steps      (parameters.steps       );
-                        settings.layouts.BOX.container.attrs[1].value = parameters.id;
-                        scrollbox = builder.build(settings.layouts.BOX);
+                        settings.layouts.BOX.container.attrs[1].value   = parameters.id;
+                        scrollbox                                       = builder.build(settings.layouts.BOX);
                         if (scrollbox !== null) {
                             nodes = {
                                 content     : scrollbox.content,
@@ -119,16 +142,20 @@
                                     horizontal  : scrollbox.horizontal.runner,
                                 }
                             };
-                            //Mount
-                            parameters.parent.appendChild(scrollbox.container);
-                            //Init tracks
-                            tracks.init(parameters, nodes);
-                            //Init buttons
-                            buttons.init(parameters, nodes);
-                            //Init runners
-                            runners.init(parameters, nodes);
-                            //Attach scrollbox events
-                            sbEvents.attach(parameters, nodes);
+                            if (parameters.parent !== null) {
+                                //Mount
+                                parameters.parent.appendChild(scrollbox.container);
+                                //Init tracks
+                                tracks.init(parameters, nodes);
+                                //Init buttons
+                                buttons.init(parameters, nodes);
+                                //Init runners
+                                runners.init(parameters, nodes);
+                                //Attach scrollbox events
+                                sbEvents.attach(parameters, nodes);
+                            } else {
+                                return false;
+                            }
                         }
                         return {
                             id      : parameters.id,
@@ -232,12 +259,12 @@
                 },
                 events: {
                     mousedown: function (parameters, nodes) {
-                        var DOMEvents = events.ClassDOMEvents();
+                        var DOMEvents = events.DOMEvents();
                         DOMEvents.add(nodes.tracks.vertical,    'mousedown', function (event) { tracks.actions.onMouseDown(event, parameters, nodes, 'vertical'     ); });
                         DOMEvents.add(nodes.tracks.horizontal,  'mousedown', function (event) { tracks.actions.onMouseDown(event, parameters, nodes, 'horizontal'   ); });
                     },
                     mouseup: function (parameters, nodes) {
-                        var DOMEvents = events.ClassDOMEvents();
+                        var DOMEvents = events.DOMEvents();
                         DOMEvents.add(nodes.tracks.vertical,    'mouseup', function () { tracks.actions.onMouseUp(parameters, nodes); });
                         DOMEvents.add(nodes.tracks.horizontal,  'mouseup', function () { tracks.actions.onMouseUp(parameters, nodes); });
                     },
@@ -289,7 +316,7 @@
                         );
                     },
                     move        : function (parameters, nodes) {
-                        var DOMEvents = events.ClassDOMEvents();
+                        var DOMEvents = events.DOMEvents();
                         DOMEvents.add(
                             nodes.runner.horizontal,
                             'mousedown',
@@ -309,22 +336,24 @@
                     },
                     window_move : function () {
                         var isAttached  = flex.overhead.globaly.get(settings.storage.GROUP, settings.storage.RUNNER_WINDOW_MOVE),
-                            DOMEvents   = events.ClassDOMEvents();
+                            DOMEvents   = events.DOMEvents();
                         if (isAttached !== true) {
                             flex.overhead.globaly.set(settings.storage.GROUP, settings.storage.RUNNER_WINDOW_MOVE, true);
-                            flex.events.DOM.add(
+                            DOMEvents.add(
                                 window,
                                 'mousemove',
                                 function (event) {
                                     runners.actions.onMouseMove(DOMEvents.unify(event));
-                                }
+                                },
+                                settings.parameters.GLOBAL_EVENT_ID
                             );
-                            flex.events.DOM.add(
+                            DOMEvents.add(
                                 window,
                                 'mouseup',
                                 function (event) {
                                     runners.actions.onMouseUp(DOMEvents.unify(event));
-                                }
+                                },
+                                settings.parameters.GLOBAL_EVENT_ID
                             );
                         }
                     }
@@ -525,14 +554,14 @@
                 },
                 events: {
                     mousedown   : function (parameters, nodes) {
-                        var DOMEvents = events.ClassDOMEvents();
+                        var DOMEvents = events.DOMEvents();
                         DOMEvents.add(nodes.buttons.top,      'mousedown', function (event) { buttons.actions.onMouseDown(event, parameters, nodes, 'up'      ); });
                         DOMEvents.add(nodes.buttons.bottom,   'mousedown', function (event) { buttons.actions.onMouseDown(event, parameters, nodes, 'down'    ); });
                         DOMEvents.add(nodes.buttons.left,     'mousedown', function (event) { buttons.actions.onMouseDown(event, parameters, nodes, 'left'    ); });
                         DOMEvents.add(nodes.buttons.right,    'mousedown', function (event) { buttons.actions.onMouseDown(event, parameters, nodes, 'right'   ); });
                     },
                     mouseup     : function (parameters, nodes) {
-                        var DOMEvents = events.ClassDOMEvents();
+                        var DOMEvents = events.DOMEvents();
                         DOMEvents.add(nodes.buttons.top,      'mouseup', function () { buttons.actions.onMouseUp(parameters, nodes); });
                         DOMEvents.add(nodes.buttons.bottom,   'mouseup', function () { buttons.actions.onMouseUp(parameters, nodes); });
                         DOMEvents.add(nodes.buttons.left,     'mouseup', function () { buttons.actions.onMouseUp(parameters, nodes); });
@@ -602,10 +631,9 @@
             };
             sbEvents    = {
                 attach              : function (parameters, nodes) {
-                    var events = flex.registry.events.ui.scrollbox;
                     flex.events.core.listen(
-                        events.GROUP, 
-                        events.REFRESH,
+                        flex.registry.events.ui.scrollbox.GROUP,
+                        flex.registry.events.ui.scrollbox.REFRESH,
                         function (id) {
                             return sbEvents.onRefresh(id, parameters, nodes);
                         },
@@ -613,10 +641,19 @@
                         false
                     );
                     flex.events.core.listen(
-                        events.GROUP,
-                        events.REFRESH_BY_PARENT,
-                        function (parent) {
-                            return sbEvents.onRefreshByParent(parent, parameters, nodes);
+                        flex.registry.events.ui.window.resize.GROUP,
+                        flex.registry.events.ui.window.resize.REFRESH,
+                        function (params) {
+                            return sbEvents.onRefreshByParent(params.container, parameters, nodes);
+                        },
+                        parameters.id,
+                        false
+                    );
+                    flex.events.core.listen(
+                        flex.registry.events.ui.window.maximize.GROUP,
+                        flex.registry.events.ui.window.maximize.CHANGE,
+                        function (params) {
+                            return sbEvents.onRefreshByParent(params.container, parameters, nodes);
                         },
                         parameters.id,
                         false

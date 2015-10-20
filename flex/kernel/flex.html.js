@@ -14,17 +14,21 @@
         var protofunction = function () { };
         protofunction.prototype = function () {
             var select      = null,
+                find        = null,
                 privates    = null,
                 sizes       = null,
                 scroll      = null,
                 builder     = null,
                 styles      = null,
                 position    = null,
+                units       = null,
+                helpers     = null,
                 settings    = null;
             settings    = {
                 storage : {
-                    GROUP   : 'flex.html',
-                    SCROLL  : 'scroll'
+                    GROUP           : 'flex.html',
+                    SCROLL          : 'scroll',
+                    CUSTOM_STYLES   : 'custom.styles'
                 },
                 classes : {
                     scroll: {
@@ -139,6 +143,99 @@
                     return Object.freeze(new protofunction());
                 },
             };
+            find        = function () { 
+                var protofunction = function () { };
+                protofunction.prototype = {
+                    childByAttr : function (parent, nodeName, attribute) {
+                        var result_node = null,
+                            nodeName    = nodeName.toLowerCase(),
+                            self        = this;
+                        if (typeof parent.childNodes !== "undefined") {
+                            if (typeof parent.childNodes.length === "number") {
+                                Array.prototype.forEach.call(
+                                    parent.childNodes,
+                                    function (childNode) {
+                                        if (typeof childNode.nodeName === "string") {
+                                            if (childNode.nodeName.toLowerCase() === nodeName || nodeName === "*") {
+                                                if (typeof childNode.getAttribute === "function") {
+                                                    if (attribute.value !== null) {
+                                                        if (childNode.getAttribute(attribute.name) === attribute.value) {
+                                                            return childNode;
+                                                        }
+                                                    } else {
+                                                        if (childNode.hasAttribute(attribute.name) === true) {
+                                                            return childNode;
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        result_node = self.childByAttr(childNode, nodeName, attribute);
+                                        if (result_node !== null) {
+                                            return result_node;
+                                        }
+                                    }
+                                );
+                            }
+                        }
+                        return null;
+                    },
+                    childByType : function (parent, nodeName) {
+                        var result_node = null,
+                            nodeName    = nodeName.toLowerCase(),
+                            self        = this;
+                        if (typeof parent.childNodes !== "undefined") {
+                            if (typeof parent.childNodes.length === "number") {
+                                Array.prototype.forEach.call(
+                                    parent.childNodes,
+                                    function (childNode) {
+                                        if (typeof childNode.nodeName === "string") {
+                                            if (childNode.nodeName.toLowerCase() === nodeName) {
+                                                return childNode;
+                                            }
+                                        }
+                                    }
+                                );
+                                Array.prototype.forEach.call(
+                                    parent.childNodes,
+                                    function (childNode) {
+                                        result_node = self.childByType(childNode, nodeName);
+                                        if (result_node !== null) {
+                                            return result_node;
+                                        }
+                                    }
+                                );
+                            }
+                        }
+                        return null;
+                    },
+                    parentByAttr: function (child, attribute) {
+                        if (typeof child !== 'undefined' && typeof attribute !== 'undefined') {
+                            if (typeof child.parentNode !== 'undefined') {
+                                if (child.parentNode !== null) {
+                                    if (typeof child.parentNode.getAttribute === 'function') {
+                                        if (attribute.value !== null) {
+                                            if (child.parentNode.getAttribute(attribute.name) === attribute.value) {
+                                                return child.parentNode;
+                                            } else {
+                                                return this.parentByAttr(child.parentNode, attribute);
+                                            }
+                                        } else {
+                                            if (child.parentNode.getAttribute(attribute.name) !== null) {
+                                                return child.parentNode;
+                                            } else {
+                                                return this.parentByAttr(child.parentNode, attribute);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        return null;
+                    }
+                };
+                return new protofunction();
+            };
             sizes       = function () {
                 var protofunction       = function () { };
                 protofunction.prototype = {
@@ -160,32 +257,41 @@
                             height  = node.offsetHeight;
                             width   = node.offsetWidth;
                         }
-                        return { height: height, Width: width }
+                        return { height: height, width: width }
                     },
                     nodeWithMargin          : function (node) {
                         var height      = 0,
                             width       = 0,
                             selector    = null,
                             size        = this.node(node),
-                            top, bottom, right, left;
+                            top, bottom, right, left,
+                            b_top, b_bottom, b_right, b_left;
                         if (typeof node === 'string') {
                             selector    = select.bySelector();
                             node        = selector.first(node);
                             selector    = null;
                         }
                         if (node !== null) {
-                            top     = parseInt(document.defaultView.getComputedStyle(node).marginTop,       10);
-                            bottom  = parseInt(document.defaultView.getComputedStyle(node).marginBottom,    10);
-                            right   = parseInt(document.defaultView.getComputedStyle(node).marginRight,     10);
-                            left    = parseInt(document.defaultView.getComputedStyle(node).marginLeft,      10);
-                            if (top     === null || top     === "") { top       = 0; } else { top       = parseInt(top,     10); }
-                            if (bottom  === null || bottom  === "") { bottom    = 0; } else { bottom    = parseInt(bottom,  10); }
-                            if (right   === null || right   === "") { right     = 0; } else { right     = parseInt(right,   10); }
-                            if (left    === null || left    === "") { left      = 0; } else { left      = parseInt(left,    10); }
+                            top         = parseInt(document.defaultView.getComputedStyle(node).marginTop,           10);
+                            bottom      = parseInt(document.defaultView.getComputedStyle(node).marginBottom,        10);
+                            right       = parseInt(document.defaultView.getComputedStyle(node).marginRight,         10);
+                            left        = parseInt(document.defaultView.getComputedStyle(node).marginLeft,          10);
+                            b_top       = parseInt(document.defaultView.getComputedStyle(node).borderTopWidth,      10);
+                            b_bottom    = parseInt(document.defaultView.getComputedStyle(node).borderBottomWidth,   10);
+                            b_right     = parseInt(document.defaultView.getComputedStyle(node).borderRightWidth,    10);
+                            b_left      = parseInt(document.defaultView.getComputedStyle(node).borderLeftWidth,     10);
+                            if (top         === null || top         === NaN) { top          = 0; }
+                            if (bottom      === null || bottom      === NaN) { bottom       = 0; } 
+                            if (right       === null || right       === NaN) { right        = 0; }
+                            if (left        === null || left        === NaN) { left         = 0; }
+                            if (b_top       === null || b_top       === NaN) { b_top        = 0; }
+                            if (b_bottom    === null || b_bottom    === NaN) { b_bottom     = 0; }
+                            if (b_right     === null || b_right     === NaN) { b_right      = 0; }
+                            if (b_left      === null || b_left      === NaN) { b_left       = 0; }
                         }
                         return {
-                            height  : size.height + top + bottom,
-                            width   : size.width + right + left
+                            height  : size.height + top + bottom + b_top + b_bottom,
+                            width   : size.width + right + left + b_right + b_left
                         }
                     },
                     node                    : function (node) {
@@ -448,9 +554,9 @@
                 return new protofunction();
             };
             styles      = function () {
-                var protofunction = function () { };
+                var protofunction       = function () { };
                 protofunction.prototype = {
-                    apply   : function (node, styles) {
+                    apply           : function (node, styles) {
                         if (node && typeof styles === 'object') {
                             if (node.style) {
                                 for (var property in styles) {
@@ -461,7 +567,7 @@
                         }
                         return false;
                     },
-                    redraw  : function(node){
+                    redraw          : function (node){
                         if (node){
                             if (typeof node.style !== 'undefined'){
                                 node.style.display = 'none';
@@ -470,7 +576,182 @@
                             }
                         }
                         return false;
-                    }
+                    },
+                    getRuleFromSheet: function (sheet, selector) {
+                        /// <summary>
+                        /// Get rule from CSS for defined selector
+                        /// </summary>
+                        /// <param name="sheet"     type="sheet"    >CSS sheet</param>
+                        /// <param name="selector"  type="string"   >CSS selector</param>
+                        /// <returns type="array">Rules for selector</returns>
+                        var sheets  = document.styleSheets,
+                            styles  = null,
+                            rules   = [];
+                        try {
+                            selector = selector.replace(/['"]/gi, '|');
+                            Array.prototype.forEach.call(
+                                (sheet.cssRules || sheet.rules),
+                                function (rule, index) {
+                                    if (rule.selectorText) {
+                                        if (rule.selectorText.replace(/['"]/gi, '|') === selector) {
+                                            rules.push({
+                                                rule    : rule,
+                                                style   : rule.style || null,
+                                                index   : index,
+                                                cssText : (rule.cssText || '')
+                                            });
+                                        }
+                                    } else if (typeof rule.cssText === 'string') {
+                                        if (rule.cssText.indexOf(selector.toLowerCase()) === 0) {
+                                            rules.push({
+                                                rule    : rule,
+                                                style   : rule.style || null,
+                                                index   : index,
+                                                cssText : (rule.cssText || '')
+                                            });
+                                        }
+                                    }
+                                }
+                            );
+                        } catch (e) {
+                        } finally {
+                            return rules.length > 0 ? rules : null;
+                        }
+                    },
+                    getRule         : function (selector) {
+                        /// <summary>
+                        /// Get rule from CSS for defined selector
+                        /// </summary>
+                        /// <param name="selector"  type="string"   >CSS selector</param>
+                        /// <returns type="array">Rules for selector</returns>
+                        var sheets  = document.styleSheets,
+                            styles  = null,
+                            rules   = [],
+                            self    = this;
+                        try {
+                            selector = selector.replace(/['"]/gi, '|');
+                            Array.prototype.forEach.call(
+                                document.styleSheets,
+                                function (sheet) {
+                                    var result = self.getRuleFromSheet(sheet, selector);
+                                    if (result !== null) {
+                                        rules = rules.concat(result);
+                                    }
+                                }
+                            );
+                        } catch (e) {
+                        } finally {
+                            return rules.length > 0 ? rules : null;
+                        }
+                    },
+                    setRule         : function (selector, cssText) {
+                        var sheet = flex.overhead.globaly.get(settings.storage.GROUP, settings.storage.CUSTOM_STYLES);
+                        if (typeof cssText === 'string') {
+                            if (sheet === null) {
+                                sheet       = document.createElement("style");
+                                sheet.type  = "text/css";
+                                document.head.appendChild(sheet);
+                                sheet       = sheet.styleSheet || sheet.sheet;
+                                flex.overhead.globaly.set(settings.storage.GROUP, settings.storage.CUSTOM_STYLES, sheet);
+                            }
+                            if (sheet.insertRule) {
+                                sheet.insertRule(selector + ' {' + cssText + '}', sheet.cssRules.length);
+                                return {
+                                    rule    : sheet.cssRules[sheet.cssRules.length - 1],
+                                    index   : sheet.cssRules.length - 1,
+                                    sheet   : sheet
+                                };
+                            } else if (sheet.addRule) {
+                                sheet.addRule(selector + ' {' + cssText + '}', -1);
+                                return {
+                                    rule    : sheet.cssRules[sheet.cssRules.length - 1],
+                                    index   : sheet.cssRules.length - 1,
+                                    sheet   : sheet
+                                };
+                            }
+                        }
+                        return null;
+                    },
+                    updateRule      : function (sheet, rule, cssText) {
+                        var selector = rule.selectorText;
+                        this.deleteRule(sheet, rule);
+                        return this.setRule(selector, cssText);
+                    },
+                    deleteRule      : function (sheet, target, deep) {
+                        function getIndex(self, target, sheet, deep) {
+                            var result = null;
+                            if (typeof target !== 'undefined') {
+                                if (typeof target === 'string') {
+                                    //selector
+                                    if (deep === false && sheet !== null) {
+                                        result = self.getRuleFromSheet(sheet, target);
+                                    } else {
+                                        result = self.getRule(target);
+                                    }
+                                    if (result !== null) {
+                                        if (result.length === 1) {
+                                            return result[0].index;
+                                        }
+                                    }
+                                } else if (typeof target === 'number') {
+                                    //index
+                                    return target;
+                                } else if (typeof target === 'object') {
+                                    //rule object
+                                    if (sheet !== null) {
+                                        return self.getRuleIndex(sheet, target);
+                                    }
+                                }
+                            }
+                            return -1;
+                        };
+                        var sheet   = sheet || flex.overhead.globaly.get(settings.storage.GROUP, settings.storage.CUSTOM_STYLES),
+                            deep    = typeof deep === 'boolean' ? deep : true,
+                            index   = getIndex(this, target, sheet, deep);
+                        if (index !== -1 && sheet !== null) {
+                            if (sheet.deleteRule) {
+                                sheet.deleteRule(index);
+                                return true;
+                            } else if (sheet.removeRule) {
+                                sheet.removeRule(index);
+                                return true;
+                            }
+                        }
+                        return null
+                    },
+                    getRuleIndex    : function (sheet, rule){
+                        var index = -1;
+                        try{
+                            Array.prototype.forEach.call(
+                                sheet.cssRules,
+                                function(_rule, rule_index){
+                                    if (_rule === rule){
+                                        index = rule_index;
+                                        throw 'found';
+                                    }
+                                }
+                            );
+                        }catch(e){
+                            if (e === 'found'){
+                                return index;
+                            }
+                        }
+                        return -1;
+                    },
+                    addClass        : function (node, name) {
+                        if (typeof node.className !== 'undefined') {
+                            if (node.className.search(name) === -1) {
+                                node.className += name;
+                            }
+                        }
+                    },
+                    removeClass     : function (node, name) {
+                        if (typeof node.className !== 'undefined') {
+                            if (node.className.search(name) !== -1) {
+                                node.className = node.className.replace(name, '');
+                            }
+                        }
+                    },
                 };
                 return new protofunction();
             };
@@ -563,27 +844,69 @@
                 }());
                 return new protofunction();
             };
+            units       = function () { 
+                var protofunction       = function () { };
+                protofunction.prototype = {
+                    em  : function (context) {
+                        context = context || document.documentElement;
+                        context = context.parentNode ? context : document.documentElement;
+                        return parseFloat(getComputedStyle(context).fontSize);
+                    },
+                    rem : function () {
+                        this.em(document.documentElement);
+                    },
+                };
+                return new protofunction();
+            };
+            helpers     = {
+                validateNode: function (node) {
+                    var selector = null;
+                    if (node) {
+                        if (typeof node === 'string') {
+                            selector    = select.bySelector();
+                            node        = selector.first(node);
+                        }
+                        if (node !== null) {
+                            if (typeof node.parentNode !== 'undefined') {
+                                return node;
+                            }
+                        }
+                    }
+                    return null;
+                },
+                appendChilds: function (parent, childs) {
+                    for (var index = childs.length - 1; index >= 0; index -= 1) {
+                        parent.appendChild(childs[0]);
+                    }
+                }
+            };
             privates    = {
                 select  : {
                     bySelector  : select.bySelector,
                     fromParent  : select.fromParent
                 },
+                find    : find,
                 size    : sizes,
                 scroll  : scroll,
                 builder : builder,
                 styles  : styles,
-                position: position
+                position: position,
+                units   : units,
+                helpers : helpers
             };
             return {
                 select      : {
                     bySelector: privates.select.bySelector,
                     fromParent: privates.select.fromParent
                 },
+                find        : privates.find,
                 size        : privates.size,
                 scroll      : privates.scroll,
                 builder     : privates.builder,
                 styles      : styles,
-                position    : privates.position
+                position    : privates.position,
+                units       : units,
+                helpers     : privates.helpers
             };
         };
         flex.modules.attach({

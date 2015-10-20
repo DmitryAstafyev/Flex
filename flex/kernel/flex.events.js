@@ -19,6 +19,7 @@
                 var protofunction       = function () {};
                 protofunction.prototype = (function () {
                     var tools       = null,
+                        touches     = null,
                         storage     = null,
                         settings    = {
                             STORAGE_NAME                : 'FlexEventsStorage',
@@ -27,23 +28,27 @@
                         Handle      = null,
                         privates    = null;
                     //Handle class
-                    Handle              = function (id, handle, once) {
+                    Handle              = function (id, handle, once, touch) {
                         this.id             = id;
                         this.handle         = handle;
                         this.once           = once;
+                        this.touch          = touch;
                         this.remove         = false;
                         this.interaction    = null;
                         this.working        = false;
+                        this.device         = null;
                     };
                     Handle.prototype    = {
                         id          : null,
                         once        : null,
+                        touch       : null,
                         remove      : null,
                         handle      : null,
                         interaction : null,
                         working     : null,
+                        device      : null,
                         launch      : function (context, event) {
-                            if (this.remove === false) {
+                            if (this.remove === false && this.isDouble(event) === false) {
                                 try {
                                     this.working    = true;
                                     this.remove     = this.once;
@@ -52,7 +57,14 @@
                                     this.error(event, e);
                                     return null;
                                 } finally {
-                                    this.working    = false;
+                                    this.working = false;
+                                    if (this.once === true && this.remove === false) {
+                                        flex.logs.log(
+                                            'Unexpected behavior DOM.fire. Flag [once] is true, but [remove] is false; \n\r ' +
+                                            '>event id' + this.id,
+                                            flex.logs.types.WARNING
+                                        );
+                                    }
                                 }
                             }
                             return null;
@@ -71,6 +83,16 @@
                                 "event: " + event.type + "; ID: " + this.id + "; generated error: \r\n" + flex.logs.parseError(e),
                                 flex.logs.types.WARNING
                             );
+                        },
+                        isDouble   : function (event) {
+                            var device = '';
+                            if (event.flex.singleTouch) {
+                                device = 'touch';
+                            } else {
+                                device = 'mouse';
+                            }
+                            this.device = (this.device === null ? device : this.device);
+                            return this.device === device ? false : true;
                         }
                     };
                     //Methods
@@ -84,6 +106,7 @@
                         ///     [function]  handle,                                                 &#13;&#10;
                         ///     [string]    id     (optional),                                      &#13;&#10;
                         ///     [boolean]   once   (optional) -> true - remove after handle will be once used}</param>
+                        ///     [boolean]   touch  (optional) -> true - try find analog of touch event and attach it}</param>
                         /// <returns type="boolean">true if success and false if fail</returns>
                         function validate(parameters) {
                             parameters.element  = typeof parameters.element !== 'undefined' ? parameters.element    : null;
@@ -91,6 +114,11 @@
                             parameters.handle   = typeof parameters.handle  === 'function'  ? parameters.handle     : null;
                             parameters.id       = typeof parameters.id      === 'string'    ? parameters.id         : flex.unique();
                             parameters.once     = typeof parameters.once    === 'boolean'   ? parameters.once       : false;
+                            parameters.touch    = typeof parameters.touch   === 'boolean'   ? parameters.touch      : true;
+                            //Prevent double attaching for touch events
+                            if (touches.has(parameters.name) === false) {
+                                parameters.touch = false;
+                            }
                             return parameters;
                         };
                         var parameters  = validate(parameters),
@@ -98,10 +126,10 @@
                         if (parameters.element !== null && parameters.handle !== null && parameters.name !== null) {
                             handles = storage.get(parameters.element, false);
                             if (handles !== null) {
-                                handles = tools.buildCommonHandle(parameters.element, parameters.name, handles);
+                                handles = tools.buildCommonHandle(parameters.element, parameters.name, handles, parameters.touch);
                                 if (handles instanceof Array) {
                                     handles.push(
-                                        new Handle(parameters.id, parameters.handle, parameters.once)
+                                        new Handle(parameters.id, parameters.handle, parameters.once, parameters.touch)
                                     );
                                     return parameters.id;
                                 }
@@ -109,7 +137,7 @@
                         }
                         return null;
                     };
-                    function fire(element, event, element_id) {
+                    function fire(element, event, element_id, original_type) {
                         /// <summary>
                         /// Common handle of events
                         /// </summary>
@@ -123,11 +151,12 @@
                             interaction         = flex.unique(),
                             isPrevent           = null,
                             self                = this,
-                            needRemoveChecking  = false;
+                            needRemoveChecking  = false,
+                            event_type          = (event.type !== original_type ? original_type : event.type);
                         if (event && element && element_id && handles_storage !== null) {
                             event = tools.unificationEvent(event);
-                            if (handles_storage[event.type]) {
-                                handles_storage = handles_storage[event.type];
+                            if (handles_storage[event_type]) {
+                                handles_storage = handles_storage[event_type];
                                 if (handles_storage.element_id === element_id) {
                                     handles = handles_storage.handles;
                                     try {
@@ -135,16 +164,16 @@
                                             handles,
                                             function (handle) {
                                                 if (handle.interaction !== interaction) {
-                                                    handle.interaction = interaction;
-                                                    isPrevent = handle.handle.call(self, event);
-                                                    needRemoveChecking = needRemoveChecking === true ? true : (handle.isRemoving() === false ? false : true);
+                                                    handle.interaction  = interaction;
+                                                    isPrevent           = handle.launch(self, event);
+                                                    needRemoveChecking  = needRemoveChecking === true ? true : (handle.isRemoving() === false ? false : true);
                                                     if (isPrevent === false) {//It's correct. Here false means prevent other handles
                                                         event.flex.stop();
                                                         flex.logs.log(
                                                             'Break event in DOM.fire; \n\r ' +
-                                                            '>event: ' + event.type + '\n\r ' +
-                                                            '>handle_id' + handle.id + '\n\r ' +
-                                                            '>element_id' + element_id,
+                                                            '>event: '      + event.type    + '\n\r ' +
+                                                            '>handle_id'    + handle.id     + '\n\r ' +
+                                                            '>element_id'   + element_id,
                                                             flex.logs.types.WARNING
                                                         );
                                                         throw 'prevent';
@@ -152,9 +181,9 @@
                                                 } else {
                                                     flex.logs.log(
                                                         'Unexpected behavior of handle event in DOM.fire. Attempt to call handle twice. \n\r ' +
-                                                        '>event: ' + event.type + '\n\r ' +
-                                                        '>handle_id' + handle.id + '\n\r ' +
-                                                        '>element_id' + element_id,
+                                                        '>event: '      + event.type    + '\n\r ' +
+                                                        '>handle_id'    + handle.id     + '\n\r ' +
+                                                        '>element_id'   + element_id,
                                                         flex.logs.types.LOGICAL
                                                     );
                                                 }
@@ -164,8 +193,8 @@
                                         if (e !== 'prevent') {
                                             flex.logs.log(
                                                 'Unexpected error in DOM.fire; \n\r ' +
-                                                '>event: ' + event.type + '\n\r ' +
-                                                '>element_id' + element_id,
+                                                '>event: '      + event.type + '\n\r ' +
+                                                '>element_id'   + element_id,
                                                 flex.logs.types.CRITICAL
                                             );
                                         }
@@ -181,6 +210,10 @@
                                                     }
                                                 }
                                             );
+                                            if (handles_storage.handles.length === 0) {
+                                                tools.destroyCommonHandle(element, event_type);
+                                                storage.clear(element);
+                                            }
                                         }
                                         return true;
                                     }
@@ -263,6 +296,64 @@
                                 }
                             }
                         }
+                    };
+                    function clear(element, event, fire) {
+                        /// <summary>
+                        /// Remove all handles of event's type
+                        /// </summary>
+                        /// <param name="element"   type="node"     >target element</param>
+                        /// <param name="type"      type="string"   >event type</param>
+                        /// <param name="fire"      type="boolean"  >fire all handles before remove</param>
+                        /// <returns type="boolean">true if success and false if fail</returns>
+                        var handles_storage = null,
+                            handles         = null,
+                            fire            = typeof fire === 'boolean' ? fire : false;
+                        if (element && event) {
+                            handles_storage = storage.get(element, true);
+                            if (handles_storage !== null) {
+                                if (typeof handles_storage[event] === 'object') {
+                                    handles_storage = handles_storage[event];
+                                    if (fire !== false) {
+                                        try {
+                                            Array.prototype.forEach.call(
+                                                handles_storage.handles,
+                                                function (handle) {
+                                                    flex.logs.log(
+                                                        'Event fired in DOM.clear.fire; \n\r' +
+                                                        '>event: '      + event + '\n\r'+
+                                                        '>handle_id: '  + handle.id,
+                                                        flex.logs.types.NOTIFICATION
+                                                    );
+                                                    if (handle.launch(element, null) === false) {
+                                                        throw 'prevent';
+                                                    }
+                                                }
+                                            );
+                                        } catch (e) {
+                                            if (e === 'prevent') {
+                                                flex.logs.log(
+                                                    'Break event in DOM.clear.fire; \n\r ' +
+                                                    '>event: ' + event,
+                                                    flex.logs.types.WARNING
+                                                );
+                                            } else {
+                                                flex.logs.log(
+                                                    'Fatal error event in DOM.clear.fire; \n\r ' +
+                                                    '>event: ' + event,
+                                                    flex.logs.types.WARNING
+                                                );
+                                            }
+                                        }
+                                    }
+                                    handles_storage.handles = [];
+                                    tools.destroyCommonHandle(element, event);
+                                    storage.clear(element);
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
+                        return null;
                     };
                     function call(element, name) {
                         /// <summary>
@@ -369,7 +460,7 @@
                         }
                     };
                     tools = {
-                        buildCommonHandle   : function (element, type, storage) {
+                        buildCommonHandle   : function (element, type, storage, touch) {
                             /// <summary>
                             /// Build common handle for element for defined event
                             /// </summary>
@@ -381,7 +472,7 @@
                             if (typeof storage[type] !== "object") {
                                 storage[type] = {
                                     globalHandle    : function (event) {
-                                        return fire.call(element, element, event, element_id);
+                                        return fire.call(element, element, event, element_id, type);
                                     },
                                     element_id      : element_id,
                                     handles         : []
@@ -389,9 +480,13 @@
                                 if (flex.events.DOM.add(element, type, storage[type].globalHandle) === false) {
                                     return null;
                                 }
-                                return storage[type].handles;
+                                if (touch !== false) {
+                                    if (touches.has(type) !== false) {
+                                        flex.events.DOM.add(element, touches.getType(type), storage[type].globalHandle);
+                                    }
+                                }
                             }
-                            return null;
+                            return storage[type].handles;
                         },
                         destroyCommonHandle : function (element, type) {
                             /// <summary>
@@ -405,6 +500,9 @@
                                 handles_storage = storage.get(element, true);
                                 if (typeof handles_storage[type] === 'object') {
                                     flex.events.DOM.remove(element, type, handles_storage[type].globalHandle);
+                                    if (touches.has(type) !== false) {
+                                        flex.events.DOM.remove(element, touches.getType(type), handles_storage[type].globalHandle);
+                                    }
                                     handles_storage[type] = null;
                                     delete handles_storage[type];
                                     return true;
@@ -432,6 +530,31 @@
                             /// <returns type="event">Event object</returns>
                             function addContainer(event) {
                                 event.flex = {};
+                                return event;
+                            };
+                            function getCoordinates(event, source) {
+                                if (typeof source.clientX !== 'undefined') {
+                                    if (typeof source.pageX === 'undefined') {
+                                        event.flex.pageX = null;
+                                        event.flex.pageY = null;
+                                    }
+                                    if (source.pageX === null && source.clientX !== null) {
+                                        var DocumentLink    = document.documentElement,
+                                            BodyLink        = document.body;
+                                        event.flex.pageX = source.clientX + (DocumentLink && DocumentLink.scrollLeft || BodyLink && BodyLink.scrollLeft || 0) - (DocumentLink.clientLeft || 0);
+                                        event.flex.pageY = source.clientY + (DocumentLink && DocumentLink.scrollTop || BodyLink && BodyLink.scrollTop || 0) - (DocumentLink.clientTop || 0);
+                                    } else {
+                                        event.flex.pageX = source.pageX;
+                                        event.flex.pageY = source.pageY;
+                                    }
+                                } else {
+                                    event.flex.pageX = null;
+                                    event.flex.pageY = null;
+                                }
+                                event.flex.clientX = (typeof source.clientX !== 'undefined' ? source.clientX : null);
+                                event.flex.clientY = (typeof source.clientY !== 'undefined' ? source.clientY : null);
+                                event.flex.offsetX = (typeof source.offsetX !== 'undefined' ? source.offsetX : (typeof source.layerX !== 'undefined' ? source.layerX : null));
+                                event.flex.offsetY = (typeof source.offsetY !== 'undefined' ? source.offsetY : (typeof source.layerY !== 'undefined' ? source.layerY : null));
                                 return event;
                             };
                             function unificationStop(event) {
@@ -474,34 +597,23 @@
                                 return event;
                             };
                             function unificationCoordinate(event) {
-                                if (typeof event.clientX !== 'undefined') {
-                                    if (typeof event.pageX === 'undefined') {
-                                        event.flex.pageX = null;
-                                        event.flex.pageY = null;
-                                    }
-                                    if (event.pageX === null && event.clientX !== null) {
-                                        var DocumentLink    = document.documentElement,
-                                            BodyLink        = document.body;
-                                        event.flex.pageX = event.clientX + (DocumentLink && DocumentLink.scrollLeft || BodyLink && BodyLink.scrollLeft || 0) - (DocumentLink.clientLeft || 0);
-                                        event.flex.pageY = event.clientY + (DocumentLink && DocumentLink.scrollTop || BodyLink && BodyLink.scrollTop || 0) - (DocumentLink.clientTop || 0);
-                                    } else {
-                                        event.flex.pageX = event.pageX;
-                                        event.flex.pageY = event.pageY;
-                                    }
-                                } else {
-                                    event.flex.pageX = null;
-                                    event.flex.pageY = null;
-                                }
-                                event.flex.clientX = (typeof event.clientX !== 'undefined' ? event.clientX : null);
-                                event.flex.clientY = (typeof event.clientY !== 'undefined' ? event.clientY : null);
-                                event.flex.offsetX = (typeof event.offsetX !== 'undefined' ? event.offsetX : (typeof event.layerX !== 'undefined' ? event.layerX : null));
-                                event.flex.offsetY = (typeof event.offsetY !== 'undefined' ? event.offsetY : (typeof event.layerY !== 'undefined' ? event.layerY : null));
-                                return event;
+                                return getCoordinates(event, event);
                             };
                             function unificationButtons(event) {
                                 if (typeof event.which === 'undefined' && typeof event.button !== 'undefined') {
                                     event.flex.which    = (event.button & 1 ? 1 : (event.button & 2 ? 3 : (event.button & 4 ? 2 : 0)));
                                     event.flex.button   = event.button;
+                                }
+                                return event;
+                            };
+                            function unificationTouches(event) {
+                                if (typeof event.touches === "object") {
+                                    if (event.touches.length === 1) {
+                                        event                   = getCoordinates(event, event.touches[0]);
+                                        event.flex.target       = event.touches[0].target;
+                                        event.flex.singleTouch  = true;
+                                    }
+                                    event.flex.touches = event.touches;
                                 }
                                 return event;
                             };
@@ -511,19 +623,59 @@
                                 event = unificationTarget       (event);
                                 event = unificationCoordinate   (event);
                                 event = unificationButtons      (event);
+                                event = unificationTouches      (event);
                             }
                             return event;
+                        }
+                    };
+                    touches = {
+                        events          : {
+                            click       : { touch: 'touchstart' },
+                            dblclick    : { touch: 'touchstart' },
+                            mousedown   : { touch: 'touchstart' },
+                            mouseenter  : { touch: 'touchenter' },
+                            mouseleave  : { touch: 'touchleave' },
+                            mousemove   : { touch: 'touchmove' },
+                            mouseover   : { touch: '' },
+                            mouseout    : { touch: '' },
+                            mouseup     : { touch: 'touchend' },
+                        },
+                        has             : function (type) {
+                            for (var key in touches.events) {
+                                if (key === type || 'on' + key === type) {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        },
+                        getType         : function (type) {
+                            for (var key in touches.events) {
+                                if (key === type || 'on' + key === type) {
+                                    return touches.events[key].touch;
+                                }
+                            }
+                            return null;
+                        },
+                        getOriginalType : function (type) {
+                            type = type.toLowerCase();
+                            for (var key in touches.events) {
+                                if (touches.events[key].touch === type) {
+                                    return key;
+                                }
+                            }
+                            return null;
                         }
                     };
                     privates = {
                         _add    : add,
                         _remove : remove,
-                        add     : function (element, type, handle, id) {
+                        add     : function (element, type, handle, id, touch) {
                             return add({
                                 element : element,
                                 name    : type,
                                 handle  : handle,
                                 id      : id,
+                                touch   : touch
                             });
                         },
                         remove  : function (element, type, handle, id) {
@@ -534,21 +686,25 @@
                                 id      : id,
                             });
                         },
+                        clear   : clear,
                         unify   : tools.unificationEvent
                     };
                     return {
-                        add     : privates.add,
-                        remove  : privates.remove,
-                        unify   : privates.unify
+                        add             : privates.add,
+                        remove          : privates.remove,
+                        clear           : privates.clear,
+                        unify           : privates.unify,
+                        extendedAdd     : privates._add,
+                        extendedRemove  : privates._remove,
                     };
                 }());
                 return new protofunction();
             };
             privates = {
-                ClassDOMEvents: DOM,
+                DOMEvents: DOM,
             };
             return {
-                ClassDOMEvents: privates.ClassDOMEvents
+                DOMEvents: privates.DOMEvents
             };
         };
         flex.modules.attach({

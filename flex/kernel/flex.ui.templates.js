@@ -45,7 +45,7 @@
                     CSS_ATTACHED_JOURNAL    : 'FLEX_UI_TEMPLATES_CSS_JOURNAL',
                     PRELOAD_TRACKER         : 'FLEX_UI_TEMPLATES_PRELOAD_TRACKER',
                 },
-                tags   : {
+                tags            : {
                     FLEX_TEMPLATE       : 'flex-template',
                     FLEX_TEMPLATE_MARK  : 'flex-template-mark',
                 }
@@ -141,7 +141,7 @@
                                 storage[tracker_id] = null;
                                 delete storage[tracker_id];
                                 //Call main callback
-                                if (fail.length === 0) {
+                                if (fail.length === 0 && callbacks) {
                                     callback(callbacks.success, success, fail);
                                 } else {
                                     callback(callbacks.fail, success, fail);
@@ -156,7 +156,10 @@
                         /// <param name="template_urls" type="string || array"  >URL or URLs of template(s), which should be loaded</param>
                         /// <param name="callbacks"     type="object"           >Collection of callbacks: before, success, fail</param>
                         /// <returns                    type="boolean"          >true - success; false - fail</returns>
-                        var tracker_id = null;
+                        var tracker_id  = null,
+                            callbacks   = typeof callbacks === 'object' ? callbacks : {};
+                        flex.oop.objects.validate(callbacks, [  { name: 'success',  type: 'function', value: null },
+                                                                { name: 'fail',     type: 'function', value: null }]);
                         if (typeof template_urls === 'string') {
                             template_urls = [template_urls];
                         }
@@ -275,8 +278,7 @@
             };
             template    = {
                 apply       : function (html, parameters, save) {
-                    var data = {};
-                    data = {
+                    var data = {
                         original: html,
                         body    : template.get.body(html),
                         css     : template.get.css(html),
@@ -296,11 +298,16 @@
                         //Build template with content
                         data.template = template.build(data.body);
                         //Load css
-                        resources.css.load(data.css);
-                        //Mount node(s)
-                        template.mount(data.template, parameters.node, parameters.replace);
-                        //Call callback
-                        transport.callback(parameters.callbacks.success, data.template);
+                        resources.css.load(data.css, function () { 
+                            //Mount node(s)
+                            template.mount(data.template, parameters.node, parameters.replace);
+                            //Call callback
+                            transport.callback(parameters.callbacks.success, data.template);
+                            return false;
+                            setTimeout(function () {
+                                transport.callback(parameters.callbacks.success, data.template);
+                            }, 10);
+                        });
                         return data.template;
                     }
                     return false;
@@ -450,39 +457,61 @@
             };
             resources   = {
                 css: {
-                    load    : function (hrefs) {
-                        var journal = flex.overhead.globaly.get(settings.storage.VIRTUAL_STORAGE_GROUP, settings.storage.CSS_ATTACHED_JOURNAL, {});
-                        Array.prototype.forEach.call(
-                            hrefs,
-                            function (href) {
-                                var storaged = null;
-                                if (!journal[href]) {
-                                    //Add into journal
-                                    journal[href] = true;
-                                    //Check virtual storage
-                                    storaged = storage.virtual.get(href);
-                                    if (storaged === null) {
-                                        //Check local storage
-                                        storaged = storage.local.get(href);
-                                    }
-                                    if (storaged === null) {
-                                        //Load css from server
-                                        flex.resources.attach.css.connect(href, resources.css.onLoad);
+                    load    : function (hrefs, onFinish) {
+                        var journal     = flex.overhead.globaly.get(settings.storage.VIRTUAL_STORAGE_GROUP, settings.storage.CSS_ATTACHED_JOURNAL, {}),
+                            onFinish    = onFinish || null,
+                            register_id = flex.unique();
+                        if (hrefs.length > 0) {
+                            if (onFinish !== null) {
+                                flex.overhead.register.open(register_id, hrefs, onFinish);
+                            } else {
+                                register_id = null;
+                            }
+                            Array.prototype.forEach.call(
+                                hrefs,
+                                function (href) {
+                                    var storaged = null;
+                                    if (!journal[href]) {
+                                        //Add into journal
+                                        journal[href] = true;
+                                        //Check virtual storage
+                                        storaged = storage.virtual.get(href);
+                                        if (storaged === null) {
+                                            //Check local storage
+                                            storaged = storage.local.get(href);
+                                        }
+                                        if (storaged === null) {
+                                            //Load css from server
+                                            flex.resources.attach.css.connect(
+                                                href,
+                                                function (href) {
+                                                    resources.css.onLoad(href, register_id);
+                                                }
+                                            );
+                                        } else {
+                                            //Load css from storage
+                                            flex.resources.attach.css.adoption(storaged);
+                                            flex.overhead.register.done(register_id, href);
+                                        }
                                     } else {
-                                        //Load css from storage
-                                        flex.resources.attach.css.adoption(storaged);
+                                        flex.overhead.register.done(register_id, href);
                                     }
                                 }
-                            }
-                        );
+                            );
+                        } else {
+                            flex.system.handle(onFinish, null, 'flex.ui.templates.resources.css.load', null);
+                        }
                     },
-                    onLoad  : function (href) {
+                    onLoad  : function (href, register_id) {
                         var cssText = flex.resources.parse.css.stringify(href);
                         if (cssText !== null) {
                             //Save into virtual storage
                             storage.virtual.add(href, cssText);
                             //Save into local storage
                             storage.local.add(href, cssText);
+                        }
+                        if (register_id !== null) {
+                            flex.overhead.register.done(register_id, href);
                         }
                     }
                 }

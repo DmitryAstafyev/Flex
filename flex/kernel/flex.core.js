@@ -16,37 +16,43 @@
         var Flex = function () { };
         //Define class
         Flex.prototype = (function () {
-            var information = {
+            var information     = {
                     name    : "Flex::: web tools",
                     version : "0.10",
                     author  : "Dmitry Astafyev",
                 },
-                config      = {},
-                options     = {},
-                registry    = {},
-                ajax        = {},
-                events      = {},
-                oop         = {},
-                privates    = {},
-                modules     = {},
-                external    = {},
-                overhead    = {},
-                parsing     = {},
-                system      = {},
-                IDs         = {},
-                logs        = {};
+                config          = {},
+                coreEvents      = {},
+                options         = {},
+                registry        = {},
+                ajax            = {},
+                events          = {},
+                oop             = {},
+                privates        = {},
+                modules         = {},
+                external        = {},
+                asynchronous    = {},
+                overhead        = {},
+                parsing         = {},
+                system          = {},
+                IDs             = {},
+                logs            = {};
             config = {
                 defaults : {
                     resources   :{
-                        USE_STORAGED    : { type: 'boolean',    value: true         },
-                        MODULES         : { type: 'array',      value: []           },
-                        EXTERNAL        : { type: 'array',      value: []           }
+                        USE_STORAGED    : { type: 'boolean',    value: true },
+                        MODULES         : { type: 'array',      value: []   },
+                        EXTERNAL        : { type: 'array',      value: []   },
+                        ASYNCHRONOUS    : { type: 'array',      value: []   }
                     },
                     paths       : {
                         CORE            : { type: 'string',     value: '/kernel'    }
                     },
                     events      : {
-                        finish          : { type: 'function',   value: null         }
+                        /// <field type = 'function'>This event fires after FLEX finished loading all (module + external resources)</field>
+                        onFlexLoad      : { type: 'function',   value: null         },
+                        /// <field type = 'function'>This event fires on [window.onLoad], but not early than [onFlexLoad]</field>
+                        onPageLoad      : { type: 'function',   value: null         },
                     }
                 },
                 init    : function (settings) {
@@ -104,17 +110,27 @@
                         );
                         if (inited === true) {
                             modules.preload();
+                            asynchronous.preload();
+                        }
+                    }
+                },
+            };
+            coreEvents = {
+                onFlexLoad: function () {
+                    system.handle(config.defaults.events.onFlexLoad, null, 'config.defaults.events.onFlexLoad', this);
+                    if (config.defaults.events.onPageLoad !== null) {
+                        if (document.readyState !== 'complete') {
+                            events.DOM.add(window, 'load', config.defaults.events.onPageLoad);
+                        } else {
+                            system.handle(config.defaults.events.onPageLoad, null, 'config.defaults.events.onPageLoad', this);
                         }
                     }
                 }
             };
-            options = {
+            options     = {
                 storage : {
                     GROUP               : 'flex.core',
                     RESOURCES_JOURNAL   : 'flex.modules.resources.journal',
-                    RESOURCES_HISTORY   : 'flex.modules.resources.history',
-                    MODULES_HISTROY     : 'flex.modules.history',
-                    EXTERNAL_HISTROY    : 'flex.external.history',
                     DEFAULT_CONFIG      : 'flex.defualt.config',
                     DEFAULT_CONFIG_FLAG : 'flex.defualt.config.flag',
                 },
@@ -128,6 +144,12 @@
                     EVENTS      : 'flex.registry.events.js',
                     MODULES     : 'flex.registry.modules.js',
                     SETTINGS    : 'flex.settings.js'
+                },
+                register: {
+                    EXTERNAL_HISTROY    : 'flex.external.history',
+                    MODULES_HISTROY     : 'flex.modules.history',
+                    RESOURCES_HISTORY   : 'flex.modules.resources.history',
+                    ASYNCHRONOUS_HISTORY: 'asynchronous.history',
                 }
             };
             registry = {
@@ -523,7 +545,7 @@
                     }
                 },
                 objects     : {
-                    forEach : function (object, callback) {
+                    forEach         : function (object, callback) {
                         /// <summary>
                         /// Apply callback function to each enumerable property of object. 
                         /// </summary>
@@ -549,7 +571,7 @@
                             }
                         }
                     },
-                    extend  : function (sources, target, exclusion) {
+                    extend          : function (sources, target, exclusion) {
                         /// <signature>
                         ///     <summary>
                         ///     Copy all properties from source object to target object. And miss exclusion. 
@@ -593,7 +615,7 @@
                         }
                         return target;
                     },
-                    copy    : function (source, target) {
+                    copy            : function (source, target) {
                         var target  = target || {},
                             source  = (typeof source === "object" ? source : null),
                             copy    = oop.objects.copy;
@@ -625,7 +647,7 @@
                         }
                         return null;
                     },
-                    validate: function (object, properties) {
+                    validate        : function (object, properties) {
                         /// <signature>
                         ///     <summary>
                         ///         Validate object
@@ -636,6 +658,7 @@
                         ///         [string || array]   type,                                           &#13;&#10;
                         ///         [any]               value       (default value),                    &#13;&#10;
                         ///         [any || array]      values      (allowed values)                    &#13;&#10;
+                        ///         [function]          handle      (value = handle(value))             &#13;&#10;
                         ///     }</param>
                         ///     <returns type="boolean">true - valid; false - isn't valid</returns>
                         /// </signature>
@@ -655,28 +678,32 @@
                         if (object !== null && properties !== null) {
                             properties = (properties instanceof Array ? properties : [properties]);
                             try{
-                                Array.prototype.forEach.call(
-                                    properties,
-                                    function (property) {
-                                        if (property.name && property.type) {
-                                            if (object[property.name]) {
-                                                property.type = (typeof property.type === "string" ? [property.type] : property.type);
-                                                if (property.type instanceof Array) {
-                                                    status = false;
-                                                    Array.prototype.forEach.call(
-                                                        property.type,
-                                                        function (type) {
-                                                            if (type === "node") {
-                                                                if (object[property.name]) {
-                                                                    status = (object[property.name].nodeName ? true : status);
-                                                                }
-                                                            } else if (type === "array") {
-                                                                status = (object[property.name] instanceof Array === true ? true : status);
-                                                            } else {
-                                                                status = (typeof object[property.name] === type ? true : status);
+                                properties.forEach(function (property) {
+                                    if (property.name && property.type) {
+                                      if (object[property.name] || typeof object[property.name] === 'boolean' || typeof object[property.name] === 'number') {
+                                            property.type = (typeof property.type === "string" ? [property.type] : property.type);
+                                            if (property.type instanceof Array) {
+                                                status = false;
+                                                try {
+                                                    property.type.forEach(function (type) {
+                                                        if (type === "node") {
+                                                            if (object[property.name]) {
+                                                                status = (object[property.name].nodeName ? true : status);
                                                             }
+                                                        } else if (type === "array") {
+                                                            status = (object[property.name] instanceof Array === true ? true : status);
+                                                        } else {
+                                                            status = (typeof object[property.name] === type ? true : status);
                                                         }
-                                                    );
+                                                        if (status !== false){
+                                                            throw 'found';
+                                                        }
+                                                    });
+                                                } catch (e) {
+                                                    if (e !== 'found') {
+                                                        status = false;
+                                                    }
+                                                } finally {
                                                     if (status === false) {
                                                         if (property.value) {
                                                             object[property.name] = property.value;
@@ -688,15 +715,12 @@
                                                             if (property.values instanceof Array) {
                                                                 try {
                                                                     values_check = false;
-                                                                    Array.prototype.forEach.call(
-                                                                        property.values,
-                                                                        function (value) {
-                                                                            if (object[property.name] === value) {
-                                                                                values_check = true;
-                                                                                throw 'found';
-                                                                            }
+                                                                    property.values.forEach(function (value) {
+                                                                        if (object[property.name] === value) {
+                                                                            values_check = true;
+                                                                            throw 'found';
                                                                         }
-                                                                    );
+                                                                    });
                                                                 } catch (e) {
                                                                 }
                                                                 if (values_check === false) {
@@ -704,22 +728,78 @@
                                                                 }
                                                             }
                                                         }
+                                                        if (typeof property.handle === 'function') {
+                                                            try {
+                                                                object[property.name] = property.handle(object[property.name]);
+                                                            } catch (e) {
+                                                                if (property.value) {
+                                                                    object[property.name] = property.value;
+                                                                } else {
+                                                                    throw 'deny';
+                                                                }
+                                                            }
+                                                        }
                                                     }
                                                 }
+                                            }
+                                        } else {
+                                            if (typeof property.value !== 'undefined') {
+                                                object[property.name] = property.value;
                                             } else {
-                                                if (typeof property.value !== 'undefined') {
-                                                    object[property.name] = property.value;
-                                                } else {
-                                                    throw 'deny';
-                                                }
+                                                throw 'deny';
                                             }
                                         }
                                     }
-                                );
+                                });
                             } catch (e) {
                                 return false;
                             }
                             return true;
+                        }
+                        return null;
+                    },
+                    isValueIn       : function (target, value, deep) {
+                        var deep = typeof deep === 'boolean' ? deep : false;
+                        if (target instanceof Array) {
+                            try{
+                                target.forEach(function (property) {
+                                    if (property === value) {
+                                        throw 'found';
+                                    }
+                                });
+                                if (deep !== false) {
+                                    target.forEach(function (property) {
+                                        if (typeof property === 'object' || property instanceof Array) {
+                                            if (oop.objects.isValueIn(property, value, deep) === true) {
+                                                throw 'found';
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (e) {
+                                return true;
+                            }
+                            return false;
+                        } else if (typeof target === 'object') {
+                            try {
+                                oop.objects.forEach(target, function (key, property) {
+                                    if (property === value) {
+                                        throw 'found';
+                                    }
+                                });
+                                if (deep !== false) {
+                                    oop.objects.forEach(target, function (key, property) {
+                                        if (typeof property === 'object' || property instanceof Array) {
+                                            if (oop.objects.isValueIn(property, value, deep) === true) {
+                                                throw 'found';
+                                            }
+                                        }
+                                    });
+                                }
+                            } catch (e) {
+                                return true;
+                            }
+                            return false;
                         }
                         return null;
                     }
@@ -729,7 +809,11 @@
                 preload     : function () {
                     var libraries = config.defaults.resources.MODULES;
                     if (libraries instanceof Array && modules.registry.is_ready !== false) {
-                        modules.history.add(libraries);
+                        overhead.register.open(
+                            options.register.MODULES_HISTROY,
+                            libraries.map(function (library) { return modules.tools.clearName(library); }),
+                            external.preload
+                        );
                         Array.prototype.forEach.call(
                             libraries,
                             function (library) {
@@ -1041,7 +1125,7 @@
                                                 //Restart references of pending libraries
                                                 modules.reference.pending();
                                                 //Mark as done
-                                                modules.history.done(parameters.name);
+                                                overhead.register.done(options.register.MODULES_HISTROY, parameters.name);
                                             }
                                         );
                                         return true;
@@ -1053,37 +1137,6 @@
                     }
                 },
                 resources: {
-                    registry    : {
-                        add     : function (name, resources, callback) {
-                            var history = overhead.globaly.get(options.storage.GROUP, options.storage.RESOURCES_HISTORY, {});
-                            if (!history[name]) {
-                                history[name] = {
-                                    resources   : resources.map(function (resource) { return resource.url; }),
-                                    callback    : callback
-                                };
-                            }
-                        },
-                        done    : function (name, url) {
-                            var history = overhead.globaly.get(options.storage.GROUP, options.storage.RESOURCES_HISTORY, {});
-                            if (history[name]) {
-                                if (history[name].resources.indexOf(url) !== -1) {
-                                    history[name].resources.splice(history[name].resources.indexOf(url), 1);
-                                }
-                                if (modules.resources.registry.isReady(name) !== false) {
-                                    history[name].callback();
-                                    history[name] = null;
-                                    delete history[name];
-                                }
-                            }
-                        },
-                        isReady : function (name) {
-                            var history = overhead.globaly.get(options.storage.GROUP, options.storage.RESOURCES_HISTORY, {});
-                            if (history[name]) {
-                                return history[name].resources.length > 0 ? false : true;
-                            }
-                            return true;
-                        }
-                    },
                     loader: {
                         load    : function (url, hash) {
                             var request = ajax.create(
@@ -1092,10 +1145,10 @@
                                 'get',
                                 null,
                                 {
-                                    success: function (response, request) {
+                                    success : function (response, request) {
                                         modules.resources.loader.success(url, response, hash);
                                     },
-                                    fail: function (response, request) {
+                                    fail    : function (response, request) {
                                         modules.resources.loader.fail(request, url, response, hash);
                                     }
                                 },
@@ -1136,7 +1189,11 @@
                                         }
                                     });
                                     //Registry resources of module
-                                    modules.resources.registry.add(name, resources, callback);
+                                    overhead.register.open(
+                                        options.register.RESOURCES_HISTORY + ':' + name,
+                                        resources.map(function (resource) { return resource.url; }),
+                                        callback
+                                    );
                                     //Try get resources
                                     modules.resources.get(resources, name);
                                 } else {
@@ -1172,7 +1229,7 @@
                                     logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
                                 }
                             }
-                            modules.resources.registry.done(name, resource.url);
+                            overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
                         };
                         function reload(name, resource) {
                             if (resource.url.search(regs.CSS) !== -1) {
@@ -1180,7 +1237,7 @@
                                 system.resources.css.connect(
                                     resource.url,
                                     function () {
-                                        modules.resources.registry.done(name, resource.url);
+                                        overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
                                     },
                                     null
                                 );
@@ -1189,7 +1246,7 @@
                                 system.resources.js.connect(
                                     resource.url,
                                     function () {
-                                        modules.resources.registry.done(name, resource.url);
+                                        overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
                                     },
                                     null
                                 );
@@ -1320,7 +1377,7 @@
                             repository  = null;
                         if (settings !== null) {
                             if (settings.hash) {
-                                modules.history.add(name);
+                                overhead.register.add(options.register.MODULES_HISTROY, modules.tools.clearName(name));
                                 repository = modules.repository.get(modules.tools.fullName(name), settings.hash);
                                 if (repository !== null) {
                                     modules.attach.safely(repository);
@@ -1334,40 +1391,6 @@
                                 }
                             }
                         }
-                    }
-                },
-                history     : {
-                    add     : function (names) {
-                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.MODULES_HISTROY, {}),
-                            names   = names instanceof Array ? names : [names];
-                        Array.prototype.forEach.call(
-                            names,
-                            function (name) {
-                                var _name = modules.tools.clearName(name);
-                                if (storage[_name] === undefined) {
-                                    storage[_name] = 'wait';
-                                }
-                            }
-                        );
-                    },
-                    done    : function (name) {
-                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.MODULES_HISTROY, {}),
-                            name    = modules.tools.clearName(name);
-                        if (storage[name] !== undefined) {
-                            storage[name] = 'done';
-                        }
-                        if (modules.history.isReady() !== false) {
-                            external.preload();
-                        }
-                    },
-                    isReady : function () {
-                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.MODULES_HISTROY, {});
-                        for (var key in storage) {
-                            if (storage[key] !== 'done') {
-                                return false;
-                            }
-                        }
-                        return true;
                     }
                 },
                 tools       : {
@@ -1386,7 +1409,11 @@
                     var resources = config.defaults.resources.EXTERNAL;
                     if (resources instanceof Array) {
                         if (resources.length > 0) {
-                            external.history.add(resources.map(function (resource) { return resource.url;}));
+                            overhead.register.open(
+                                options.register.EXTERNAL_HISTROY,
+                                resources.map(function (resource) { return resource.url; }),
+                                coreEvents.onFlexLoad
+                            );
                             Array.prototype.forEach.call(
                                 resources,
                                 function (resource) {
@@ -1397,21 +1424,22 @@
                                 }
                             );
                         } else {
-                            external.history.done('no_resources');
+                            coreEvents.onFlexLoad();
                         }
                     } else {
-                        external.history.done('no_resources');
+                        coreEvents.onFlexLoad();
                     }
                 },
                 embody      : function (parameters) {
-                    function JS(content, url) {
+                    function JS(content, url, onLoad, onError) {
                         var wrapper = null;
                         if (config.defaults.resources.USE_STORAGED === false) {
-                            system.resources.js.connect(url, null, null);
+                            system.resources.js.connect(url, onLoad, onError);
                         } else {
                             wrapper = new Function(content);
                             try {
                                 wrapper.call(window);
+                                onLoad();
                                 return true;
                             } catch (e) {
                                 logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
@@ -1419,11 +1447,12 @@
                             }
                         }
                     };
-                    function CSS(content, url) {
+                    function CSS(content, url, onLoad, onError) {
                         if (config.defaults.resources.USE_STORAGED === false) {
-                            system.resources.css.connect(url, null, null);
+                            system.resources.css.connect(url, onLoad, onError);
                         } else {
                             system.resources.css.adoption(content);
+                            system.handle(onLoad, null, 'external.embody', this);
                         }
                         return true;
                     };
@@ -1444,8 +1473,18 @@
                         Embody = CSS;
                     }
                     if (Embody !== null) {
+                        Embody(
+                            parameters.body,
+                            parameters.url,
+                            function () {
+                                overhead.register.done(options.register.EXTERNAL_HISTROY, parameters.url);
+                            },
+                            function () {
+                                logs.log('Resource [' + parameters.url + '] was not load. But FLEX continues loading.', logs.types.CRITICAL);
+                                overhead.register.done(options.register.EXTERNAL_HISTROY, parameters.url);
+                            }
+                        );
                         if (Embody(parameters.body, parameters.url) !== false) {
-                            external.history.done(parameters.url);
                         }
                     }
                 },
@@ -1578,40 +1617,242 @@
                         logs.log('Cannot load resource: [' + url + '].', logs.types.CRITICAL);
                     }
                 },
-                history: {
-                    add     : function (urls) {
-                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.EXTERNAL_HISTROY, {}),
-                            urls    = urls instanceof Array ? urls : [urls];
-                        Array.prototype.forEach.call(
-                            urls,
-                            function (url) {
-                                if (storage[url] === undefined) {
-                                    storage[url] = 'wait';
+            };
+            asynchronous = {
+                preload     : function () {
+                    var groups = config.defaults.resources.ASYNCHRONOUS;
+                    if (groups instanceof Array) {
+                        if (groups.length > 0) {
+                            Array.prototype.forEach.call(
+                                groups,
+                                function (group) {
+                                    var id = IDs.id();
+                                    if (oop.objects.validate(group, [   { name: 'resources',    type: 'array'                   },
+                                                                        { name: 'storage',      type: 'boolean',    value: true },
+                                                                        { name: 'finish',       type: 'function',   value: null }]) !== false) {
+                                        //Make register
+                                        overhead.register.open(
+                                            id,
+                                            group.resources.map(function (resource) { return resource.url; }),
+                                            group.finish
+                                        );
+                                        //Make calls
+                                        group.resources.forEach(function (resource) {
+                                            if (oop.objects.validate(resource, [{ name: 'url',      type: 'string' },
+                                                                                { name: 'after',    type: 'array', value: false }]) !== false) {
+                                                asynchronous.repository.call(resource, id, group.storage);
+                                            }
+                                        });
+                                    }
                                 }
-                            }
-                        );
-                    },
-                    done    : function (url) {
-                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.EXTERNAL_HISTROY, {});
-                        if (storage[url] !== undefined) {
-                            storage[url] = 'done';
+                            );
                         }
-                        if (external.history.isReady() !== false) {
-                            system.handle(config.defaults.events.finish, null, 'onFinishLoadExternal', this);
-                        }
-                    },
-                    isReady : function () {
-                        var storage = overhead.globaly.get(options.storage.GROUP, options.storage.EXTERNAL_HISTROY, {});
-                        for (var key in storage) {
-                            if (storage[key] !== 'done') {
+                    }
+                },
+                embody      : function (parameters) {
+                    function JS(id, content, url, storage) {
+                        var wrapper = null;
+                        if (config.defaults.resources.USE_STORAGED === false || storage === false) {
+                            system.resources.js.connect(
+                                url,
+                                function(){
+                                    overhead.register.done(id, url);
+                                    asynchronous.wait.check();
+                                },
+                                null
+                            );
+                            return false;
+                        } else {
+                            wrapper = new Function(content);
+                            try {
+                                wrapper.call(window);
+                                return true;
+                            } catch (e) {
+                                logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
                                 return false;
                             }
                         }
+                    };
+                    function CSS(id, content, url, storage) {
+                        if (config.defaults.resources.USE_STORAGED === false || storage === false) {
+                            system.resources.css.connect(url, null, null);
+                        } else {
+                            system.resources.css.adoption(content);
+                        }
                         return true;
+                    };
+                    /// <summary>
+                    /// Try to initialize external resource
+                    /// </summary>
+                    /// <param name="parameters" type="Object">Object of resource:  &#13;&#10;
+                    /// {   [string]    url,                                        &#13;&#10;
+                    ///     [string]    body,                                       &#13;&#10;
+                    ///     [string]    id                                          &#13;&#10;
+                    ///     [string]    storage                                     &#13;&#10;
+                    /// }</param>
+                    /// <returns type="boolean">true if success and false if not</returns>
+                    var regs    = options.regs.resources,
+                        Embody  = null;
+                    if (parameters.url.search(regs.JS) !== -1) {
+                        Embody = JS;
+                    } else if (parameters.url.search(regs.CSS) !== -1) {
+                        Embody = CSS;
+                    }
+                    if (Embody !== null) {
+                        if (Embody(parameters.id, parameters.body, parameters.url, parameters.storage) !== false) {
+                            overhead.register.done(parameters.id, parameters.url);
+                            asynchronous.wait.check();
+                        }
                     }
                 },
+                repository  : {
+                    add : function (parameters) {
+                        /// <summary>
+                        /// Add resource into repository
+                        /// </summary>
+                        /// <param name="parameters" type="Object">Object of module:    &#13;&#10;
+                        /// {   [string]    url,                                        &#13;&#10;
+                        ///     [string]    body,                                       &#13;&#10;
+                        /// }</param>
+                        /// <returns type="boolean">true if success and false if not</returns>
+                        if (config.defaults.resources.USE_STORAGED !== false) {
+                            return system.localStorage.set(
+                                parameters.url,
+                                JSON.stringify(
+                                    {
+                                        body: parameters.body,
+                                    }
+                                ),
+                                true
+                            );
+                        }
+                        return null;
+                    },
+                    get : function (url) {
+                        /// <summary>
+                        /// Get resource from repository
+                        /// </summary>
+                        /// <param name="url"   type="string">URL of resource</param>
+                        /// <returns type="object">Value of resource if success and NULL if not</returns>
+                        var localStorage    = system.localStorage,
+                            storaged        = localStorage.get(url, true);
+                        if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
+                            try {
+                                storaged = JSON.parse(storaged);
+                                if (storaged.hash === hash) {
+                                    return storaged;
+                                } else {
+                                    localStorage.del(url);
+                                    return null;
+                                }
+                            } catch (e) {
+                                localStorage.del(url);
+                                return null;
+                            }
+                        }
+                        return null;
+                    },
+                    call: function (resource, id, storage) {
+                        function load(resource, id, storage) {
+                            var repository = asynchronous.repository.get(resource.url);
+                            if (repository !== null || storage === false) {
+                                asynchronous.embody({
+                                    url     : resource.url,
+                                    id      : id,
+                                    body    : repository !== null ? repository.body : null,
+                                    storage : storage
+                                });
+                            } else {
+                                asynchronous.loader.load(resource.url, id, true, storage);
+                            }
+                        };
+                        /// <summary>
+                        /// Try find resource in repository and load it if necessary 
+                        /// </summary>
+                        /// <param name="resource"  type="string">resource</param>
+                        /// <param name="hash"      type="string">Control hash for resource</param>
+                        /// <returns type="void">void</returns>
+                        var status = true;
+                        if (resource.after === false) {
+                            load(resource, id, storage);
+                        } else {
+                            resource.after.forEach(function (url) {
+                                status = status === false ? false : overhead.register.isDone(id, url);
+                            });
+                            if (status !== false) {
+                                load(resource, id, storage);
+                                asynchronous.wait.remove(resource.url);
+                            } else {
+                                asynchronous.wait.add(resource, id, storage);
+                            }
+                        }
+                    }
+                },
+                loader      : {
+                    load    : function (url, id, embody, storage) {
+                        var request = ajax.create(
+                                null,
+                                url,
+                                'get',
+                                null,
+                                {
+                                    success: function (response, request) {
+                                        asynchronous.loader.success(url, response, id, embody, storage);
+                                    },
+                                    fail: function (response, request) {
+                                        asynchronous.loader.fail(request, url, response, id);
+                                    }
+                                },
+                                null
+                            );
+                        request.send();
+                    },
+                    success : function (url, response, id, embody, storage) {
+                        if (storage !== false) {
+                            asynchronous.repository.add({
+                                url : url,
+                                body: response.original
+                            });
+                        }
+                        if (embody !== false) {
+                            asynchronous.embody({
+                                url     : url,
+                                id      : id,
+                                body    : response.original,
+                                storage : storage
+                            });
+                        }
+                    },
+                    fail    : function (request, url, response, id) {
+                        logs.log('Cannot load resource: [' + url + '].', logs.types.CRITICAL);
+                    }
+                },
+                wait        : {
+                    storage : {},
+                    add     : function (resource, id, storage) {
+                        var storage = asynchronous.wait.storage;
+                        if (!storage[resource.url]) {
+                            storage[resource.url]           = resource;
+                            storage[resource.url].id        = id;
+                            storage[resource.url].storage   = storage;
+                        }
+                    },
+                    remove  : function (url) {
+                        var storage = asynchronous.wait.storage;
+                        if (storage[url]) {
+                            storage[url] = null;
+                            delete storage[url];
+                        }
+                    },
+                    check   : function () {
+                        var storage = asynchronous.wait.storage;
+                        for (var key in storage) {
+                            asynchronous.repository.call(storage[key], storage[key].id, storage[key].storage);
+                        }
+                    }
+                }
             };
-            parsing = {
+            parsing     = {
                 js  : {
                     stringify       : function (_function) {
                         /// <summary>
@@ -1705,7 +1946,7 @@
                     }
                 },
                 css : {
-                    stringify: function (href) {
+                    stringify       : function (href) {
                         /// <summary>
                         /// Get string from CSS resource
                         /// </summary>
@@ -1821,7 +2062,7 @@
                         return false;
                     }
                 },
-                objecty: {
+                objecty : {
                     settings: {
                         COMMON_STORAGE_NAME : 'FlexObjectStorage'
                     },
@@ -1834,7 +2075,7 @@
                         /// <param name="value"     type="any"      >Value</param>
                         /// <param name="rewrite"   type="boolean"  >[optional] rewrite or not value</param>
                         /// <returns type="any">value</returns>
-                        var rewrite = (typeof rewrite === "boolean" ? rewrite : true),
+                        var rewrite     = (typeof rewrite === "boolean" ? rewrite : true),
                             settings    = overhead.objecty.settings;
                         if (typeof element === "object" && typeof property === "string" && typeof value !== "undefined") {
                             if (typeof element[settings.COMMON_STORAGE_NAME] !== "object") {
@@ -1851,18 +2092,20 @@
                         }
                         return null; 
                     },
-                    get     : function (element, property, remove) {
+                    get     : function (element, property, remove, default_value) {
                         /// <summary>
                         /// Get property from virtual storage based on element
                         /// </summary>
-                        /// <param name="element"   type="object"   >Object for attach storage</param>
-                        /// <param name="property"  type="string"   >Name of property</param>
-                        /// <param name="remove"    type="boolean"  >[optional] remove or not property from storage after value will be read</param>
+                        /// <param name="element"       type="object"   >Object for attach storage</param>
+                        /// <param name="property"      type="string"   >Name of property</param>
+                        /// <param name="remove"        type="boolean"  >[optional] remove or not property from storage after value will be read</param>
+                        /// <param name="default_value" type="any"      >[optional] default value of property</param>
                         /// <returns type="any">value</returns>
-                        var remove = (typeof remove === "boolean" ? remove : false),
-							value       = null,
-                            settings    = overhead.objecty.settings,
-							tools       = overhead.objecty.tools;
+                        var remove          = (typeof remove === "boolean" ? remove : false),
+                            default_value   = (typeof default_value !== "undefined" ? default_value : null),
+							value           = null,
+                            settings        = overhead.objecty.settings,
+							tools           = overhead.objecty.tools;
                         if (typeof element === "object" && typeof property === "string") {
                             if (typeof element[settings.COMMON_STORAGE_NAME] === "object") {
                                 if (typeof element[settings.COMMON_STORAGE_NAME][property] !== "undefined") {
@@ -1873,6 +2116,17 @@
                                         tools.clear(element);
                                     }
                                     return value;
+                                } else {
+                                    if (default_value !== null) {
+                                        element[settings.COMMON_STORAGE_NAME][property] = default_value;
+                                        return element[settings.COMMON_STORAGE_NAME][property];
+                                    }
+                                }
+                            } else {
+                                if (default_value !== null) {
+                                    element[settings.COMMON_STORAGE_NAME]           = {};
+                                    element[settings.COMMON_STORAGE_NAME][property] = default_value;
+                                    return element[settings.COMMON_STORAGE_NAME][property];
                                 }
                             }
                         }
@@ -1919,6 +2173,149 @@
                             }
                         }
                     }
+                },
+                register: {
+                    settings: {
+                        COMMON_STORAGE_NAME: 'FlexRegisterStorage'
+                    },
+                    build   : function (name, onReadyHandle) {
+                        //Define class of register
+                        var Register        = function (name, onReadyHandle) {
+                            this.name       = name;
+                            this.onReady    = onReadyHandle;
+                            this.items      = {};
+                        };
+                        Register.prototype  = {
+                            add     : function (key) {
+                                if (!this.items[key]) {
+                                    this.items[key] = {
+                                        isDone  : false,
+                                        key     : key
+                                    };
+                                    return true;
+                                }
+                                return false;
+                            },
+                            done    : function (key, do_not_check) {
+                                var do_not_check = typeof do_not_check === 'boolean' ? do_not_check : false;
+                                if (this.items[key]) {
+                                    this.items[key].isDone = true;
+                                }
+                                if (do_not_check === false) {
+                                    if (this.isReady() !== false) {
+                                        if (this.onReady !== null) {
+                                            system.handle(this.onReady, null, 'Register: ' + this.name, this);
+                                        }
+                                        return true;
+                                    }
+                                }
+                                return false;
+                            },
+                            isReady : function () {
+                                for (var key in this.items) {
+                                    if (this.items[key].isDone === false) {
+                                        return false;
+                                    }
+                                }
+                                return true;
+                            },
+                            isIn    : function (key) {
+                                return (this.items[key] ? true : false);
+                            },
+                            isDone: function (key) {
+                                if (this.items[key]) {
+                                    return this.items[key].isDone;
+                                }
+                                return null;
+                            }
+                        };
+                        //Create register
+                        return new Register(name, onReadyHandle);
+                    },
+                    open    : function (name, keys, onReadyHandle) {
+                        /// <summary>
+                        /// Create new register
+                        /// </summary>
+                        /// <param name="name"          type="string"       >Name of register</param>
+                        /// <param name="keys"          type="array || any" >Default keys for register</param>
+                        /// <param name="onReadyHandle" type="function"     >onReady handle, handle, which will be fired on all items will be done</param>
+                        /// <returns type="boolean">true / false</returns>
+                        var name            = (typeof name === 'string' ? name : null),
+                            keys            = (keys instanceof Array ? keys : (typeof keys !== 'undefined' ? [keys] : null)),
+                            onReadyHandle   = (typeof onReadyHandle === 'function' ? onReadyHandle : null),
+                            register        = null,
+                            storage         = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {});
+                        if (name !== null) {
+                            if (!storage[name]) {
+                                //Create register
+                                register = overhead.register.build(name, onReadyHandle);
+                                //Add keys
+                                keys.forEach(function (key) {
+                                    register.add(key);
+                                });
+                                //Save register
+                                storage[name] = register;
+                            }
+                        }
+                        return false;
+                    },
+                    add     : function (name, key) {
+                        /// <summary>
+                        /// Add new key into register
+                        /// </summary>
+                        /// <param name="name"  type="string">Name of register</param>
+                        /// <param name="key"   type="string">New key name</param>
+                        /// <returns type="boolean">true / false</returns>
+                        var storage = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {});
+                        if (storage[name]) {
+                            return storage[name].add(key);
+                        }
+                        return false;
+                    },
+                    done    : function (name, key, do_not_check) {
+                        /// <summary>
+                        /// Set item of register to DONE
+                        /// </summary>
+                        /// <param name="name"          type="string"   >Name of register</param>
+                        /// <param name="key"           type="string"   >New key name</param>
+                        /// <param name="do_not_check"  type="boolean"  >true - check is all items are ready; false - do not check</param>
+                        /// <returns type="boolean">true / false</returns>
+                        var storage         = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {}),
+                            do_not_check    = typeof do_not_check === 'boolean' ? do_not_check : false;
+                        if (storage[name]) {
+                            if (storage[name].done(key, do_not_check) !== false) {
+                                storage[name] = null;
+                                delete storage[name];
+                            }
+                        }
+                        return false;
+                    },
+                    isIn    : function (name, key) {
+                        /// <summary>
+                        /// Is key in register
+                        /// </summary>
+                        /// <param name="name"  type="string">Name of register</param>
+                        /// <param name="key"   type="string">New key name</param>
+                        /// <returns type="boolean">true / false</returns>
+                        var storage = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {});
+                        if (storage[name]) {
+                            return storage[name].isIn(key);
+                        }
+                        return false;
+                    },
+                    isDone    : function (name, key) {
+                        /// <summary>
+                        /// Is key done
+                        /// </summary>
+                        /// <param name="name"  type="string">Name of register</param>
+                        /// <param name="key"   type="string">New key name</param>
+                        /// <returns type="boolean">true / false</returns>
+                        var storage = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {});
+                        if (storage[name]) {
+                            return storage[name].isDone(key);
+                        }
+                        return false;
+                    },
                 }
             };
             events = {
@@ -2452,9 +2849,10 @@
             };
             logs = {
                 types       : {
-                    CRITICAL: 'critical',
-                    LOGICAL : 'logical',
-                    WARNING : 'warning'
+                    CRITICAL        : 'critical',
+                    LOGICAL         : 'logical',
+                    WARNING         : 'warning',
+                    NOTIFICATION    : 'notification'
                 },
                 parseError  : function (e) {
                     var message = e.name + ": " + e.message + "\r\n--------------------------------------------";
@@ -2497,6 +2895,11 @@
                         get: overhead.objecty.get,
                         del: overhead.objecty.remove
                     },
+                    register: {
+                        open: overhead.register.open,
+                        add : overhead.register.add,
+                        done: overhead.register.done,
+                    }
                 },
                 ajax : {
                     send : ajax.create
@@ -2514,6 +2917,10 @@
                         css: {
                             connect : system.resources.css.connect,
                             adoption: system.resources.css.adoption,
+                        },
+                        js: {
+                            connect : system.resources.js.connect,
+                            adoption: system.resources.js.adoption,
                         }
                     }
                 },
@@ -2555,6 +2962,11 @@
                         get: privates.overhead.objecty.get,
                         del: privates.overhead.objecty.del
                     },
+                    register: {
+                        open: privates.overhead.register.open,
+                        add : privates.overhead.register.add,
+                        done: privates.overhead.register.done,
+                    }
                 },
                 ajax : {
                     send : privates.ajax.send
@@ -2567,6 +2979,10 @@
                         css : {
                             connect : privates.resources.attach.css.connect,
                             adoption: privates.resources.attach.css.adoption,
+                        },
+                        js  : {
+                            connect : privates.resources.attach.js.connect,
+                            adoption: privates.resources.attach.js.adoption,
                         }
                     }
                 },
@@ -2589,3 +3005,6 @@
         window['flex'] = new Flex();
     }
 }());
+/*TODO:
+* fix problem with IE9 -> limit for CSS - 4095 selectors per one stylesheet
+*/
