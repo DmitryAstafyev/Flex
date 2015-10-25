@@ -1,7 +1,7 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
-/// <reference path="flex.registry.modules.js" />
+/// <reference path='intellisense/flex.libraries.intellisense.js' />
 /// <reference path="flex.core.js" />
 /// <module>
 ///     <summary>
@@ -23,6 +23,7 @@
                 position    = null,
                 units       = null,
                 helpers     = null,
+                callers     = null,
                 settings    = null;
             settings    = {
                 storage : {
@@ -880,6 +881,211 @@
                     }
                 }
             };
+            callers     = {
+                init: function () {
+                    function SizeClass      () { if (_size      === null) { _size       = sizes             (); } };
+                    function PositionClass  () { if (_position  === null) { _position   = position          (); } };
+                    function StylesClass    () { if (_styles    === null) { _styles     = styles            (); } };
+                    function ScrollClass    () { if (_scroll    === null) { _scroll     = scroll            (); } };
+                    function FindClass      () { if (_find      === null) { _find       = find              (); } };
+                    function SelectorClass  () { if (_selector  === null) { _selector   = select.fromParent (); } };
+                    var _size       = null,
+                        _position   = null,
+                        _styles     = null,
+                        _scroll     = null,
+                        _find       = null,
+                        _selector   = null;
+                    //_node
+                    flex.callers.define.node('html.size.get',                   function () {
+                        SizeClass();
+                        return _size.node(this.target);
+                    });
+                    flex.callers.define.node('html.size.getWithMargin',         function () {
+                        SizeClass();
+                        return _size.nodeWithMargin(this.target);
+                    });
+                    flex.callers.define.node('html.size.getByClientRectSize',   function () {
+                        SizeClass();
+                        return _size.nodeByClientRectSize(this.target);
+                    });
+                    flex.callers.define.node('html.size.getByOffset',           function () {
+                        SizeClass();
+                        return _size.nodeByOffset(this.target);
+                    });
+                    flex.callers.define.node('html.position.byPage',            function () {
+                        PositionClass();
+                        return _position.byPage(this.target);
+                    });
+                    flex.callers.define.node('html.position.byWindow',          function () {
+                        PositionClass();
+                        return _position.byWindow(this.target);
+                    });
+                    flex.callers.define.node('html.styles.apply',               function (styles) {
+                        StylesClass();
+                        return _styles.apply(this.target, styles);
+                    });
+                    flex.callers.define.node('html.styles.redraw',              function () {
+                        StylesClass();
+                        return _styles.redraw(this.target);
+                    });
+                    flex.callers.define.node('html.styles.addClass',            function (class_name) {
+                        StylesClass();
+                        return _styles.addClass(this.target, class_name);
+                    });
+                    flex.callers.define.node('html.styles.removeClass',         function (class_name) {
+                        StylesClass();
+                        return _styles.removeClass(this.target, class_name);
+                    });
+                    flex.callers.define.node('html.scroll.position',            function () {
+                        ScrollClass();
+                        return _scroll.get(this.target);
+                    });
+                    flex.callers.define.node('html.find.childByAttr',           function (node_name, attribute) {
+                        FindClass();
+                        return _find.childByAttr(this.target, node_name, attribute);
+                    });
+                    flex.callers.define.node('html.find.childByType',           function (node_name) {
+                        FindClass();
+                        return _find.childByType(this.target, node_name);
+                    });
+                    flex.callers.define.node('html.find.parentByAttr',          function (attribute) {
+                        FindClass();
+                        return _find.parentByAttr(this.target, attribute);
+                    });
+                    flex.callers.define.node('html.find.node',                  function (selector) {
+                        SelectorClass();
+                        return _selector.first(this.target, selector);
+                    });
+                    flex.callers.define.node('html.find.nodes',                 function (selector) {
+                        SelectorClass();
+                        return _selector.all(this.target, selector);
+                    });
+                    //_nodes
+                    flex.callers.define.nodes('html.size.get',                   function () {
+                        var result = [];
+                        SizeClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_size.node(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.size.getWithMargin',         function () {
+                        var result = [];
+                        SizeClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_size.nodeWithMargin(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.size.getByClientRectSize',   function () {
+                        var result = [];
+                        SizeClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_size.nodeByClientRectSize(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.size.getByOffset',           function () {
+                        var result = [];
+                        SizeClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_size.nodeByOffset(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.position.byPage',            function () {
+                        var result = [];
+                        PositionClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_position.byPage(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.position.byWindow',          function () {
+                        var result = [];
+                        PositionClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_position.byWindow(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.styles.apply',               function (styles) {
+                        StylesClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_styles.apply(target, styles));
+                        });
+                    });
+                    flex.callers.define.nodes('html.styles.redraw',              function () {
+                        StylesClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_styles.redraw(target));
+                        });
+                    });
+                    flex.callers.define.nodes('html.styles.addClass',            function (class_name) {
+                        StylesClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_styles.addClass(target, class_name));
+                        });
+                    });
+                    flex.callers.define.nodes('html.styles.removeClass',         function (class_name) {
+                        StylesClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_styles.removeClass(target, class_name));
+                        });
+                    });
+                    flex.callers.define.nodes('html.scroll.position',            function () {
+                        var result = [];
+                        ScrollClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_scroll.get(target));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.find.childByAttr',           function (node_name, attribute) {
+                        var result = [];
+                        FindClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_find.childByAttr(target, node_name, attribute));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.find.childByType',           function (node_name) {
+                        var result = [];
+                        FindClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_find.childByType(target, node_name));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.find.parentByAttr',          function (attribute) {
+                        var result = [];
+                        FindClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(_find.parentByAttr(target, attribute));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.find.node',                  function (selector) {
+                        var result = [];
+                        SelectorClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(selector.first(target, selector));
+                        });
+                        return result;
+                    });
+                    flex.callers.define.nodes('html.find.nodes',                 function (selector) {
+                        var result = [];
+                        SelectorClass();
+                        Array.prototype.forEach.call(this.target, function (target) {
+                            result.push(selector.all(target, selector));
+                        });
+                        return result;
+                    });
+                }
+            };
+            //Initialization of callers
+            callers.init();
+            //Public part
             privates    = {
                 select  : {
                     bySelector  : select.bySelector,

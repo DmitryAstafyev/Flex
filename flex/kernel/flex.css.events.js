@@ -1,7 +1,7 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
-/// <reference path="flex.registry.modules.js" />
+/// <reference path='intellisense/flex.libraries.intellisense.js' />
 /// <reference path="flex.core.js" />
 /// <module>
 ///     <summary>

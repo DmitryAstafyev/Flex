@@ -12,14 +12,14 @@
         /// <var>Collection of flex libraries</var>
         flex.libraries = {
             /// <field type = 'function'>Basic events controller</field>
-            events  : { settings: true, source: 'kernel/flex.events.js', hash: 'HASHPROPERTY' },
+            events  : { settings: true, source: 'kernel/flex.events.js',    hash: 'HASHPROPERTY' },
             /// <field type = 'function'>Collection of tools for management of DOM</field>
-            html    : { settings: true, source: 'kernel/flex.html.js', hash: 'HASHPROPERTY' },
+            html    : { settings: true, source: 'kernel/flex.html.js',      hash: 'HASHPROPERTY' },
             css     : {
                 /// <field type = 'function'>Controller CSS animation</field>
                 animation   : { settings: true, source: 'kernel/flex.css.animation.js', hash: 'HASHPROPERTY' },
                 /// <field type = 'function'>Controller CSS events</field>
-                events      : { settings: true, source: 'kernel/flex.css.events.js', hash: 'HASHPROPERTY' },
+                events      : { settings: true, source: 'kernel/flex.css.events.js',    hash: 'HASHPROPERTY' },
             },
             /// <field type = 'function'>Collection of UI elements</field>
             ui      : {

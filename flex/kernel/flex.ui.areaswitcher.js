@@ -2,8 +2,8 @@
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
 /// <reference path='flex.core.js' />
-/// <reference path='flex.registry.modules.js' />
-/// <reference path='flex.registry.events.js' />
+/// <reference path='intellisense/flex.libraries.intellisense.js' />
+/// <reference path='intellisense/flex.registry.events.intellisense.js' />
 /// <module>
 ///     <summary>
 ///         Module control switching of areas 

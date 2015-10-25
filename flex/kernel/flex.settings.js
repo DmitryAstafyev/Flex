@@ -27,7 +27,7 @@
                             finish  : null
                         }
                     ],
-                    USE_STORAGED    : true,
+                    USE_STORAGED    : false,
                 },
                 paths   : {
                     CORE: '/kernel'
