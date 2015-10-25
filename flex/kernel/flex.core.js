@@ -3198,46 +3198,6 @@
     window['_object'    ] = flex.callers.object;
     window['_string'    ] = flex.callers.string;
     window['_boolean'   ] = flex.callers.boolean;
-    /*
-    var SomeClass = function (target) {
-        this.target = target;
-    };
-    SomeClass.prototype = {
-        say: function () {
-            console.log(this.target);
-        },
-        group: {
-            sayme: function () {
-                console.log('group: ' + this.target);
-            }
-        },
-    };
-    var update = function () {
-        for (var key in SomeClass.prototype) {
-            if (typeof SomeClass.prototype[key] === 'object') {
-                var updated = function () {
-                    updated.target = this.target;
-                    return updated;
-                };
-                for (var pro in SomeClass.prototype[key]) {
-                    updated[pro] = SomeClass.prototype[key][pro];
-                }
-                SomeClass.prototype[key] = updated;
-            }
-        }
-    };
-    update();
-    var someClass1 = new SomeClass('test1');
-    var someClass2 = new SomeClass('test2');
-    var someClass3 = new SomeClass('test3');
-
-    someClass1.say();
-    someClass1.group().sayme();
-    someClass2.say();
-    someClass2.group().sayme();
-    someClass3.say();
-    someClass3.group().sayme();
-    */
 }());
 /*TODO:
 * fix problem with IE9 -> limit for CSS - 4095 selectors per one stylesheet
