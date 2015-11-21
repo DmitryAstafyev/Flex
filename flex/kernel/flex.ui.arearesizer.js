@@ -616,61 +616,6 @@
                         parameters.areas[params.area_id].size = size;
                     }
                 },
-                add         : {
-                    validate: function (params) {
-                        var result = flex.oop.objects.validate(params, [{ name: 'content',  type: ['node', 'string'], value: null, handle: html.helpers.validateNode },
-                                                                        { name: 'onFinish', type: 'function',         value: null },
-                                                                        { name: 'id',       type: 'string' },
-                                                                        { name: 'area_id',  type: 'string', value: flex.unique() },
-                                                                        { name: 'position', type: 'object', value: {} },
-                                                                        { name: 'size',     type: 'object', value: {} },
-                                                                        { name: 'minSize',  type: 'object', value: {} },
-                                                                        { name: 'maxSize',  type: 'object', value: {} }]);
-                        if (result !== false) {
-                            ['size', 'minSize', 'maxSize'].forEach(function (property) {
-                                flex.oop.objects.validate(params[property], [   { name: 'width',    type: ['string', 'number'], value: false },
-                                                                                { name: 'height',   type: ['string', 'number'], value: false }]);
-                            });
-                            flex.oop.objects.validate(params.position, [{ name: 'column',   type: 'number', value: null },
-                                                                        { name: 'row',      type: 'number', value: null },
-                                                                        { name: 'columns',  type: 'number', value: null },
-                                                                        { name: 'rows',     type: 'number', value: null }]);
-                        }
-                        return result;
-                    },
-                    add     : function (params) {
-                        var builder     = html.builder(),
-                            content     = null,
-                            parameters  = null;
-                        return;
-                        if (render.add.validate(params) !== false) {
-                            parameters = initializer.getParameters(params.id);
-                            if (parameters !== null) {
-                                if (render.ordering.add(parameters, params.position) !== false) {
-                                    if (!parameters.areas[params.area_id]) {
-                                        //Create and attach area
-                                        settings.layouts.AREA.attrs[1].value = params.area_id;
-                                        content = builder.build(settings.layouts.AREA)
-                                        parameters.container.appendChild(content);
-                                        //Save area
-                                        parameters.areas[params.area_id] = {
-                                            id      : params.area_id,
-                                            content : content,
-                                            index   : parameters.ordering.all.length - 1,
-                                        };
-                                        //Set ordering
-                                        render.ordering.set(parameters);
-                                        //Add new size
-                                        render.sizes.add(parameters, params);
-                                        //Recalculate sizes
-                                        render.sizes.calc(parameters);
-                                        render.sizes.update(parameters);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
             };
             borders = {
                 init        : function (parameters){
@@ -996,11 +941,9 @@
             };
             privates    = {
                 init    : initializer.init,
-                insert  : render.add.add
             };
             return {
                 init    : privates.init,
-                insert  : privates.insert
             };
         };
         flex.modules.attach({

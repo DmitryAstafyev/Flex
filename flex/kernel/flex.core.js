@@ -1,6 +1,9 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /// <reference path='intellisense/flex.libraries.intellisense.js' />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path='intellisense/flex.callers.node.intellisense.js' />
+/// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
 /// <reference path="flex.registry.events.js" />
 /// <reference path="flex.events.js" />
 /// <reference path="flex.html.js" />
@@ -28,6 +31,7 @@
             events          = {},
             oop             = {},
             privates        = {},
+            hashes          = {},
             modules         = {},
             external        = {},
             asynchronous    = {},
@@ -53,6 +57,10 @@
                     onFlexLoad      : { type: 'function',   value: null         },
                     /// <field type = 'function'>This event fires on [window.onLoad], but not early than [onFlexLoad]</field>
                     onPageLoad      : { type: 'function',   value: null         },
+                },
+                settings    : {
+                    /// <field type = 'boolean'>True - in all parsed CSS files will be done correction of paths (path like this "../step/step/some.some" will be corrected to "fullpath/step/step/some.some"</field>
+                    CHECK_PATHS_IN_CSS: { type: 'boolean', value: false }
                 }
             },
             init    : function (settings) {
@@ -112,6 +120,8 @@
                         modules.preload();
                         asynchronous.preload();
                     }
+                } else {
+                    logs.log('[CORE]:: flex was initialized before. Initialization can be done only once per session.', logs.types.NOTIFICATION);
                 }
             },
         };
@@ -125,6 +135,7 @@
                         system.handle(config.defaults.events.onPageLoad, null, 'config.defaults.events.onPageLoad', this);
                     }
                 }
+                hashes.update.queue.unlock();
             }
         };
         options     = {
@@ -150,6 +161,9 @@
                 MODULES_HISTROY     : 'flex.modules.history',
                 RESOURCES_HISTORY   : 'flex.modules.resources.history',
                 ASYNCHRONOUS_HISTORY: 'asynchronous.history',
+            },
+            hashes: {
+                LOCAL_STORAGE_NAME : 'flex.hash.storage'
             }
         };
         registry = {
@@ -218,17 +232,58 @@
                     return typeof ajax.requests.storage[id] === 'undefined' ? false : true;
                 }
             },
-            create      : function (id, url, method, parameters, callbacks, timeout) {
-                /// <summary>
-                /// Create XMLHttpRequest request. 
-                /// </summary>
-                /// <param name="id"            type="string, number"           >[optional] ID of request</param>
-                /// <param name="url"           type="string"                   >URL</param>
-                /// <param name="method"        type="string" default="post"    >[optional] POST or GET. Default POST</param>
-                /// <param name="parameters"    type="object, string"           >[optional] Object with parameters or string of parameters</param>
-                /// <param name="callbacks"     type="object"                   >[optional] Collection of callbacks [before, success, fail, reaction, timeout]. </param>
-                /// <param name="timeout"       type="number"                   >[optional] Number of ms for timeout</param>
-                /// <returns type="object" mayBeNull="true">Instance of request</returns>
+            create      : function (id, url, method, parameters, callbacks, timeout, headers) {
+                /// <signature>
+                ///     <summary>Create XMLHttpRequest request</summary>
+                ///     <param name="id"            type="string, number"           >[optional] ID of request</param>
+                ///     <param name="url"           type="string"                   >URL</param>
+                ///     <returns type="object" mayBeNull="true">Instance of request</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Create XMLHttpRequest request</summary>
+                ///     <param name="id"            type="string, number"           >[optional] ID of request</param>
+                ///     <param name="url"           type="string"                   >URL</param>
+                ///     <param name="method"        type="string" default="post"    >[optional] POST or GET. Default POST</param>
+                ///     <returns type="object" mayBeNull="true">Instance of request</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Create XMLHttpRequest request</summary>
+                ///     <param name="id"            type="string, number"           >[optional] ID of request</param>
+                ///     <param name="url"           type="string"                   >URL</param>
+                ///     <param name="method"        type="string" default="post"    >[optional] POST or GET. Default POST</param>
+                ///     <param name="parameters"    type="object, string"           >[optional] Object with parameters or string of parameters</param>
+                ///     <returns type="object" mayBeNull="true">Instance of request</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Create XMLHttpRequest request</summary>
+                ///     <param name="id"            type="string, number"           >[optional] ID of request</param>
+                ///     <param name="url"           type="string"                   >URL</param>
+                ///     <param name="method"        type="string" default="post"    >[optional] POST or GET. Default POST</param>
+                ///     <param name="parameters"    type="object, string"           >[optional] Object with parameters or string of parameters</param>
+                ///     <param name="callbacks"     type="object"                   >[optional] Collection of callbacks [before, success, fail, reaction, timeout, headers]. </param>
+                ///     <returns type="object" mayBeNull="true">Instance of request</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Create XMLHttpRequest request</summary>
+                ///     <param name="id"            type="string, number"           >[optional] ID of request</param>
+                ///     <param name="url"           type="string"                   >URL</param>
+                ///     <param name="method"        type="string" default="post"    >[optional] POST or GET. Default POST</param>
+                ///     <param name="parameters"    type="object, string"           >[optional] Object with parameters or string of parameters</param>
+                ///     <param name="callbacks"     type="object"                   >[optional] Collection of callbacks [before, success, fail, reaction, timeout, headers]. </param>
+                ///     <param name="headers"       type="object"                   >[optional] Collection of headers. </param>
+                ///     <returns type="object" mayBeNull="true">Instance of request</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Create XMLHttpRequest request</summary>
+                ///     <param name="id"            type="string, number"           >[optional] ID of request</param>
+                ///     <param name="url"           type="string"                   >URL</param>
+                ///     <param name="method"        type="string" default="post"    >[optional] POST or GET. Default POST</param>
+                ///     <param name="parameters"    type="object, string"           >[optional] Object with parameters or string of parameters</param>
+                ///     <param name="callbacks"     type="object"                   >[optional] Collection of callbacks [before, success, fail, reaction, timeout, headers]. </param>
+                ///     <param name="headers"       type="object"                   >[optional] Collection of headers. </param>
+                ///     <param name="timeout"       type="number"                   >[optional] Number of ms for timeout</param>
+                ///     <returns type="object" mayBeNull="true">Instance of request</returns>
+                /// </signature>
                 var request = null,
                     Request = null;
                 //Parse parameters
@@ -239,27 +294,31 @@
                 timeout     = (typeof timeout   === 'number' ? timeout  : ajax.settings.DEFAULT_TIMEOUT);
                 parameters  = ajax.parse.parameters(parameters);
                 callbacks   = ajax.parse.callbacks(callbacks);
+                headers     = (typeof headers === 'object' ? headers : null);
                 if (url !== null) {
                     //Define class for request
-                    Request = function (id, url, method, parameters, callbacks, timeout) {
+                    Request             = function (id, url, method, parameters, callbacks, timeout, headers) {
                         this.id         = id;
                         this.url        = url;
                         this.method     = method;
                         this.parameters = parameters;
                         this.callbacks  = callbacks;
                         this.timeout    = timeout;
+                        this.headers    = headers;
                     };
-                    Request.prototype = {
-                        id          : null,
-                        method      : null,
-                        url         : null,
-                        parameters  : null,
-                        callbacks   : null,
-                        timeout     : null,
-                        timerID     : null,
-                        response    : null,
-                        httpRequest : null,
-                        send        : function(){
+                    Request.prototype   = {
+                        id              : null,
+                        method          : null,
+                        url             : null,
+                        parameters      : null,
+                        callbacks       : null,
+                        timeout         : null,
+                        headers         : null,
+                        timerID         : null,
+                        response        : null,
+                        responseHeaders : null,
+                        httpRequest     : null,
+                        send            : function(){
                             var self = this;
                             try {
                                 //Add request to journal
@@ -281,12 +340,12 @@
                                     switch (self.method) {
                                         case 'post':
                                             self.httpRequest.open(self.method, self.url, true);
-                                            self.httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                                            self.setHeaders(self);
                                             self.httpRequest.send(self.parameters._parameters);
                                             break;
                                         case 'get':
                                             self.httpRequest.open(self.method, self.url + '?' + self.parameters._parameters, true);
-                                            self.httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                                            self.setHeaders(self);
                                             self.httpRequest.send();
                                             break;
                                     }
@@ -306,31 +365,50 @@
                                 self.destroy(self);
                             }
                         },
+                        setHeaders  : function(self){
+                            //Set headers
+                            if (self.headers !== null) {
+                                for (var key in self.headers) {
+                                    self.httpRequest.setRequestHeader(key, self.headers[key]);
+                                }
+                            } else {
+                                //Default header
+                                self.httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+                            }
+                        },
                         events      : {
                             readystatechange: function (event, self) {
                                 if (ajax.requests.isConflict(self.id) !== false) {
                                     if (event.target) {
                                         if (event.target.readyState) {
                                             self.callback(self.callbacks.reaction, event);
-                                            if (event.target.readyState === 4) {
-                                                if (event.target.status === 200) {
-                                                    //Success
-                                                    self.response = self.parse(event.target.responseText);
-                                                    self.destroy(self);
-                                                    self.callback(self.callbacks.success, event);
-                                                    return true;
-                                                } else {
-                                                    //Fail
-                                                    self.destroy(self);
-                                                    self.callback(self.callbacks.fail, event);
-                                                    return false;
-                                                }
+                                            switch (event.target.readyState) {
+                                                case 2:
+                                                    //Get headers
+                                                    self.responseHeaders = self.parseHeaders(event.target.getAllResponseHeaders());
+                                                    self.callback(self.callbacks.headers, event);
+                                                    break;
+                                                case 4:
+                                                    //Get response
+                                                    if (event.target.status === 200) {
+                                                        //Success
+                                                        self.response = self.parse(event.target.responseText);
+                                                        self.destroy(self);
+                                                        self.callback(self.callbacks.success, event);
+                                                        return true;
+                                                    } else {
+                                                        //Fail
+                                                        self.destroy(self);
+                                                        self.callback(self.callbacks.fail, event);
+                                                        return false;
+                                                    }
+                                                    break;
                                             }
                                         }
                                     }
                                 }
                             },
-                            timeout: function (event, self) {
+                            timeout         : function (event, self) {
                                 if (ajax.requests.isConflict(self.id) !== false) {
                                     self.callback(self.callbacks.timeout, event);
                                     self.destroy(self);
@@ -351,6 +429,27 @@
                                 return result;
                             }
                         },
+                        parseHeaders: function (headers) {
+                            var result  = {
+                                    _headers: headers,
+                                    headers : {}
+                                },
+                                temp    = null;
+                            if (typeof headers === 'string') {
+                                temp = headers.split('\r\n');
+                                if (temp instanceof Array) {
+                                    temp.forEach(function (header) {
+                                        var data = header.split(':');
+                                        if (data instanceof Array) {
+                                            if (data[0] !== '') {
+                                                result.headers[data[0]] = header.replace(data[0] + ':', '');
+                                            }
+                                        }
+                                    });
+                                }
+                            }
+                            return result;
+                        },
                         callback    : function (callback, event) {
                             if (callback !== null) {
                                 system.handle(
@@ -360,14 +459,23 @@
                                         {
                                             id          : this.id,
                                             event       : typeof event !== 'undefined' ? event : null,
+                                            headers     : this.responseHeaders,
                                             response    : this.response,
                                             parameters  : this.parameters,
-                                            url         : this.url
+                                            url         : this.url,
+                                            abort       : this.abort.bind(this)
                                         }
                                     ],
                                     'ajax.callback:: request ID:: ' + this.id + ' URL:: ' + this.url,
                                     this
                                 );
+                            }
+                        },
+                        abort       : function () {
+                            if (this.httpRequest !== null) {
+                                if (typeof this.httpRequest.abort === 'function') {
+                                    this.httpRequest.abort();
+                                }
                             }
                         },
                         destroy     : function (self) {
@@ -380,7 +488,7 @@
                 }
                 return null;
             },
-            parse  : {
+            parse       : {
                 parameters  : function (_parameters) {
                     var parameters  = _parameters,
                         params      = {},
@@ -460,6 +568,7 @@
                             callbacks.fail      = typeof _callbacks.fail        === 'function' ? _callbacks.fail        : null;
                             callbacks.reaction  = typeof _callbacks.reaction    === 'function' ? _callbacks.reaction    : null;
                             callbacks.timeout   = typeof _callbacks.timeout     === 'function' ? _callbacks.timeout     : null;
+                            callbacks.headers   = typeof _callbacks.headers     === 'function' ? _callbacks.headers     : null;
                         }
                     }
                     return callbacks;
@@ -469,12 +578,17 @@
         oop     = {
             namespace   : {
                 create  : function (namespace, root) {
-                    /// <summary>
-                    /// Create namespace from root. 
-                    /// </summary>
-                    /// <param name="namespace" type="String">Namespace, like: root.child.sub</param>
-                    /// <param name="root"      type="Object">[optional] Root object. Default - window</param>
-                    /// <returns type="Object" value="{ target: root, parent: parent }" mayBeNull="true">Namespace data</returns>
+                    /// <signature>
+                    ///     <summary>Create namespace from root.</summary>
+                    ///     <param name="namespace" type="String">Namespace, like: root.child.sub</param>
+                    ///     <returns type="Object" value="{ target: root, parent: parent }" mayBeNull="true">Namespace data</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Create namespace from root.</summary>
+                    ///     <param name="namespace" type="String">Namespace, like: root.child.sub</param>
+                    ///     <param name="root"      type="Object">[optional] Root object. Default - window</param>
+                    ///     <returns type="Object" value="{ target: root, parent: parent }" mayBeNull="true">Namespace data</returns>
+                    /// </signature>
                     var root    = root || window,
                         parent  = null,
                         target  = root,
@@ -505,12 +619,17 @@
                     return null;
                 },
                 get     : function (namespace, root) {
-                    /// <summary>
-                    /// Get last child in namespace. 
-                    /// </summary>
-                    /// <param name="namespace" type="String">Namespace, like: root.child.sub</param>
-                    /// <param name="root"      type="Object">[optional] Root object. Default - window</param>
-                    /// <returns type="Object" mayBeNull="true">Last child of namespace</returns>
+                    /// <signature>
+                    ///     <summary>Get last child in namespace.</summary>
+                    ///     <param name="namespace" type="String">Namespace, like: root.child.sub</param>
+                    ///     <returns type="Object" mayBeNull="true">Last child of namespace</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Get last child in namespace.</summary>
+                    ///     <param name="namespace" type="String">Namespace, like: root.child.sub</param>
+                    ///     <param name="root"      type="Object">[optional] Root object. Default - window</param>
+                    ///     <returns type="Object" mayBeNull="true">Last child of namespace</returns>
+                    /// </signature>
                     var root    = root || window,
                         target  = root;
                     if (typeof namespace === 'string') {
@@ -555,7 +674,7 @@
                     if (typeof object === 'object') {
                         for (var property in object) {
                             (function (property, object, callback) {
-                                callback(property, object);
+                                callback(property, object[property]);
                             }(property, object, callback));
                         }
                         if (!('toString' in { toString: null })) {
@@ -564,7 +683,7 @@
                                 ['toString', 'valueOf', 'constructor', 'hasOwnPropery', 'isPrototypeOf', 'propertyIsEnumerable', 'toLocaleString'],
                                 function (protoprop) {
                                     if (object.hasOwnProperty(prototype)) {
-                                        callback(protoprop, object);
+                                        callback(protoprop, object[property]);
                                     }
                                 }
                             );
@@ -616,6 +735,17 @@
                     return target;
                 },
                 copy            : function (source, target) {
+                    /// <signature>
+                    ///     <summary>Copy object</summary>
+                    ///     <param name="source" type="object">Object - source</param>
+                    ///     <returns type="object">object</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Copy object</summary>
+                    ///     <param name="source" type="object">Object - source</param>
+                    ///     <param name="target" type="object">Object - target</param>
+                    ///     <returns type="object">object</returns>
+                    /// </signature>
                     var target  = target || {},
                         source  = (typeof source === "object" ? source : null),
                         copy    = oop.objects.copy;
@@ -759,6 +889,19 @@
                     return null;
                 },
                 isValueIn       : function (target, value, deep) {
+                    /// <signature>
+                    ///     <summary>Search defined value in object</summary>
+                    ///     <param name="source"    type="object"   >Object</param>
+                    ///     <param name="value"     type="any"      >Searching value</param>
+                    ///     <returns type="boolean">true - value is found; false - value isn't found</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Search defined value in object</summary>
+                    ///     <param name="source"    type="object"   >Object</param>
+                    ///     <param name="value"     type="any"      >Searching value</param>
+                    ///     <param name="deep"      type="boolean"  >True - search in nested objects</param>
+                    ///     <returns type="boolean">true - value is found; false - value isn't found</returns>
+                    /// </signature>
                     var deep = typeof deep === 'boolean' ? deep : false;
                     if (target instanceof Array) {
                         try{
@@ -803,7 +946,163 @@
                     }
                     return null;
                 }
+            },
+            wrappers: {
+                objects: function () {
+                    wrappers.prototypes.add.object('forEach',   function (callback)             {
+                        return oop.objects.forEach(this.target, callback);
+                    });
+                    wrappers.prototypes.add.object('extend',    function (target, exclusion)    {
+                        return oop.objects.extend(this.target, target, exclusion);
+                    });
+                    wrappers.prototypes.add.object('copy',      function (target)               {
+                        return oop.objects.copy(this.target, target);
+                    });
+                    wrappers.prototypes.add.object('validate',  function (properties)           {
+                        return oop.objects.validate(this.target, properties);
+                    });
+                    wrappers.prototypes.add.object('isValueIn', function (value, deep)          {
+                        return oop.objects.isValueIn(this.target, value, deep);
+                    });
+                }
             }
+        };
+        hashes = {
+            storage: {
+                data    : {},
+                get     : function (){
+                    hashes.storage.data = system.localStorage.getJSON(options.hashes.LOCAL_STORAGE_NAME);
+                    if (typeof hashes.storage.data !== 'object' || hashes.storage.data === null) {
+                        hashes.storage.create();
+                    }
+                    return hashes.storage.data;
+                },
+                create  : function () {
+                    hashes.storage.data = {};
+                    hashes.storage.update();
+                },
+                update  : function () {
+                    system.localStorage.setJSON(options.hashes.LOCAL_STORAGE_NAME, hashes.storage.data);
+                }
+            },
+            get     : function (url) {
+                /// <signature>
+                ///     <summary>Get hash for defined resource</summary>
+                ///     <param name="url" type="string">URL to resource</param>
+                ///     <returns type="string">HASH</returns>
+                /// </signature>
+                var storage = hashes.storage.get();
+                return typeof storage[url] === 'object' ? storage[url].hash : null;
+            },
+            set     : function (url, hash) {
+                var storage = hashes.storage.get();
+                if (typeof hash === 'string') {
+                    storage[url] = {
+                        url     : url,
+                        hash    : hash
+                    };
+                    hashes.storage.update();
+                    return true;
+                }
+                return false;
+            },
+            update  : {
+                add         : function(url){
+                    /// <signature>
+                    ///     <summary>Update hash of defined resource</summary>
+                    ///     <param name="url" type="string">URL to resource</param>
+                    ///     <returns type="void">void</returns>
+                    /// </signature>
+                    hashes.update.queue.add(url);
+                },
+                queue       : {
+                    queue   : {},
+                    journal : {},
+                    isLock  : true,
+                    unlock  : function () {
+                        hashes.update.queue.isLock = false;
+                        hashes.update.proceed();
+                    },
+                    add     : function (url) {
+                        if (typeof url === 'string') {
+                            if (typeof hashes.update.queue.journal[url] === 'undefined') {
+                                hashes.update.queue.journal [url] = true;
+                                hashes.update.queue.queue   [url] = { url: url, working : false };
+                            }
+                        }
+                        if (!hashes.update.queue.isLock) {
+                            hashes.update.proceed();
+                        }
+                    },
+                    del         : function (url) {
+                        if (typeof url === 'string') {
+                            hashes.update.queue.queue[url] = null;
+                            delete hashes.update.queue.queue[url];
+                        }
+                    },
+                    work        : function (url) {
+                        if (typeof hashes.update.queue.queue[url] === 'object') {
+                            hashes.update.queue.queue[url].working = true;
+                        }
+                    },
+                    isWorking   : function (url) {
+                        if (typeof hashes.update.queue.queue[url] === 'object') {
+                            return hashes.update.queue.queue[url].working;
+                        }
+                    },
+                },
+                proceed     : function () {
+                    oop.objects.forEach(hashes.update.queue.queue, function (key, value) {
+                        var request = null;
+                        if (hashes.update.queue.isWorking(key) === false) {
+                            hashes.update.queue.work(key);
+                            request = ajax.create(
+                                null,
+                                value.url,
+                                'get',
+                                null,
+                                {
+                                    headers : function (response, request) { hashes.update.processing   (key, value.url, request); },
+                                    fail    : function (response, request) { hashes.update.fail         (key, value.url, request); }
+                                },
+                                null,
+                                null
+                            );
+                            request.send();
+                        }
+                    });
+                },
+                processing  : function (key, url, request) {
+                    var hash    = '',
+                        _hash   = hashes.get(url);
+                    if (request.headers !== null) {
+                        if (request.headers._headers !== '') {
+                            hashes.update.queue.del(key);
+                            oop.objects.forEach(request.headers.headers, function (key, value) {
+                                if (key.toLowerCase() !== 'date') {
+                                    hash += value;
+                                }
+                            });
+                            if (hashes.get(url) !== hash) {
+                                if (_hash === null) {
+                                    logs.log('[HASHES]:: hash for resource [' + url + '] was generated. Next updating of page, resource will be loaded again.', logs.types.NOTIFICATION);
+                                } else {
+                                    logs.log('[HASHES]:: resource [' + url + '] have to be updated. It will be done after page be reloaded.', logs.types.NOTIFICATION);
+                                }
+                                //Update hash
+                                hashes.set(url, hash);
+                            }
+                            request.abort();
+                        }
+                    }
+                },
+                fail    : function (key, url, request) {
+                    if (request.headers === null) {
+                        logs.log('[HASHES]:: fail to load hash for resource [' + url + '].', logs.types.NOTIFICATION);
+                        hashes.update.queue.del(key);
+                    }
+                }
+            },
         };
         modules = {
             preload     : function () {
@@ -862,7 +1161,7 @@
                                 storaged.reference();
                             }
                         } catch (e) {
-                            logs.log('Library [' + library + '] generated error during request for references:\n\r' + logs.parseError(e), logs.types.CRITICAL);
+                            logs.log('[MODULES]:: module [' + library + '] generated error during request for references:\n\r' + logs.parseError(e), logs.types.CRITICAL);
                             caller.ready    = false;
                         } finally {
                             storaged.ready  = caller.ready;
@@ -896,6 +1195,7 @@
                     /// <returns type="void">void</returns>
                     var libraries   = flex.libraries;
                     if (typeof modules.registry.ready.is_ready !== 'boolean') {
+                        modules.registry.validate(libraries);
                         modules.registry.makeCallers(modules.registry.getList(libraries));
                         modules.registry.ready.is_ready = true;
                         events.core.fire('modules.registry', 'ready', null);
@@ -913,17 +1213,45 @@
                         parent  = parent || false;
                     for (var property in libraries) {
                         list.push({ name: (parent !== false ? parent + '.' + property : property) });
-                        if (typeof libraries[property] === 'object' && libraries[property] !== null && libraries[property] !== undefined) {
-                            if (typeof libraries[property].settings !== 'boolean') {
-                                modules.registry.getList(
-                                    libraries[property],
-                                    list,
-                                    (parent !== false ? parent + '.' + property : property)
-                                );
+                        if (typeof libraries[property] === 'object' && typeof libraries[property] !== 'undefined') {
+                            if (libraries[property] !== null){
+                                if (typeof libraries[property].source !== 'string') {
+                                    modules.registry.getList(
+                                        libraries[property],
+                                        list,
+                                        (parent !== false ? parent + '.' + property : property)
+                                    );
+                                }
                             }
                         }
                     }
                     return list;
+                },
+                validate    : function (libraries, path) {
+                    var path = typeof path === 'string' ? path : '';
+                    for (var property in libraries) {
+                        if (typeof libraries[property] === 'object' && libraries[property] !== null && libraries[property] !== undefined) {
+                            if (typeof libraries[property].source !== 'string') {
+                                modules.registry.validate(libraries[property], path + '.' + property);
+                            } else {
+                                oop.objects.validate(libraries[property], [
+                                    { name: 'source',   type: 'string',     value: null     },
+                                    { name: 'hash',     type: 'string',     value: false    },
+                                    { name: 'settings', type: 'object',     value: null     },
+                                    { name: 'autoHash', type: 'boolean',    value: false    },
+                                ]);
+                                if (libraries[property].source === null || libraries[property].source === '') {
+                                    logs.log('[MODULES]:: record in modules list [flex.registry.modules.js] is corrupted. Field [source] does not exist. Check modules list.', logs.types.CRITICAL);
+                                } else {
+                                    if (libraries[property].hash === false || libraries[property].hash === '') {
+                                        libraries[property].autoHash    = true;
+                                        //libraries[property].hash        = modules.repository.getHash(modules.tools.fullName(path + '.' + property));
+                                        libraries[property].hash        = hashes.get(libraries[property].source);
+                                    }
+                                }
+                            }
+                        }
+                    }
                 },
                 makeCallers : function (list_libraries) {
                     /// <summary>
@@ -960,7 +1288,7 @@
                     /// <returns type="object">Settings if it was found or NULL in fail</returns>
                     var name = name.indexOf('flex.libraries.') === 0 ? name.replace('flex.libraries.', '') : name;
                     return oop.namespace.get(name, flex.libraries_data);
-                }
+                },
             },
             storage     : {
                 data    : {},
@@ -1138,7 +1466,7 @@
             },
             resources: {
                 loader: {
-                    load    : function (url, hash) {
+                    load    : function (url, hash, autoHash) {
                         var request = ajax.create(
                             null,
                             url,
@@ -1150,7 +1478,7 @@
                                 },
                                 fail    : function (response, request) {
                                     modules.resources.loader.fail(request, url, response, hash);
-                                }
+                                },
                             },
                             null
                         );
@@ -1167,8 +1495,8 @@
                         );
                     },
                     fail    : function (request, url, response, hash) {
-                        logs.log('Cannot load resource: [' + url + ']. Resource will be attached.', logs.types.WARNING);
-                    }
+                        logs.log('[MODULES]:: cannot load resource: [' + url + ']. Resource will be attached.', logs.types.WARNING);
+                    },
                 },
                 check   : function (name, resources, callback) {
                     var settings    = modules.registry.getSettings(name),
@@ -1183,8 +1511,9 @@
                                 resources = resources.map(function (resource) {
                                     if (typeof resource.url === 'string') {
                                         return {
-                                            url: resource.url,
-                                            hash: settings.hash
+                                            url     : resource.url,
+                                            hash    : settings.autoHash === true ? hashes.get(resource.url) : settings.hash,
+                                            autoHash:settings.autoHash
                                         }
                                     }
                                 });
@@ -1219,14 +1548,14 @@
                         var wrapper = null;
                         if (resource.url.search(regs.CSS) !== -1) {
                             //Resource: CSS
-                            system.resources.css.adoption(resource.value);
+                            system.resources.css.adoption(resource.value, null, system.url.restoreFullURL(resource.url));
                         } else if (resource.url.search(regs.JS) !== -1) {
                             //Resource: JS
                             wrapper = new Function(resource.value);
                             try {
                                 wrapper.call(window);
                             } catch (e) {
-                                logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
+                                logs.log('[MODULES]:: during initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
                             }
                         }
                         overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
@@ -1238,6 +1567,7 @@
                                 resource.url,
                                 function () {
                                     overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
+                                    logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) is reloaded.', logs.types.NOTIFICATION);
                                 },
                                 null
                             );
@@ -1247,12 +1577,13 @@
                                 resource.url,
                                 function () {
                                     overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
+                                    logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) is reloaded.', logs.types.NOTIFICATION);
                                 },
                                 null
                             );
                         }
                         //Try get same resources and cache it
-                        modules.resources.loader.load(resource.url, resource.hash);
+                        modules.resources.loader.load(resource.url, resource.hash, resource.autoHash);
                     };
                     var localStorage    = system.localStorage,
                         storaged        = localStorage.getJSON(resource.url),
@@ -1262,14 +1593,19 @@
                             restore(name, storaged);
                         } else {
                             reload(name, resource);
+                            logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) will be reloaded.', logs.types.NOTIFICATION);
                         }
                     } else {
                         reload(name, resource);
                     }
+                    //Update hash
+                    if (resource.autoHash === true) {
+                        hashes.update.add(resource.url);
+                    }
                 },
             },
             repository  : {
-                add     : function (parameters) {
+                add         : function (parameters) {
                     /// <summary>
                     /// Add resource into repository
                     /// </summary>
@@ -1292,8 +1628,17 @@
                         data.protofunction  = (typeof data.protofunction    === 'function' ? parsing.js.stringify(data.protofunction    ) : null);
                         data.reference      = (typeof data.reference        === 'function' ? parsing.js.stringify(data.reference        ) : null);
                         data.onBeforeAttach = (typeof data.onBeforeAttach   === 'function' ? parsing.js.stringify(data.onBeforeAttach   ) : null);
-                        data.onAfterAttach  = (typeof data.reference === 'function' ? parsing.js.stringify(data.onAfterAttach) : null);
+                        data.onAfterAttach  = (typeof data.reference        === 'function' ? parsing.js.stringify(data.onAfterAttach    ) : null);
                         if (data.constr !== null && data.protofunction !== null) {
+                            //Log message
+                            logs.log('[MODULES]:: module [' + parameters.name + '] was updated.', logs.types.NOTIFICATION);
+                            //Save hash
+                            if (settings.autoHash === true) {
+                                settings.hash = hashes.get(settings.source);
+                                hashes.set(settings.source, settings.hash);
+                                hashes.update.add(settings.source);
+                            }
+                            //Return result
                             return system.localStorage.set(
                                 parameters.name,
                                 JSON.stringify(
@@ -1305,10 +1650,14 @@
                                 true
                             );
                         }
+                    } else {
+                        if (settings.autoHash === true) {
+                            hashes.update.add(settings.source);
+                        }
                     }
                     return null;
                 },
-                get     : function (name, hash) {
+                get         : function (name, hash) {
                     /// <summary>
                     /// Get resource from repository
                     /// </summary>
@@ -1322,8 +1671,8 @@
                             storaged = JSON.parse(storaged);
                             if (storaged.hash === hash) {
                                 storaged.data.protofunction = parsing.js.parse({
-                                    constr  : { params: storaged.data.constr.params, body: storaged.data.constr.body },
-                                    proto   : { params: storaged.data.protofunction.params, body: storaged.data.protofunction.body }
+                                    constr  : { params: storaged.data.constr.params,        body: storaged.data.constr.body         },
+                                    proto   : { params: storaged.data.protofunction.params, body: storaged.data.protofunction.body  }
                                 });
                                 if (storaged.data.reference !== null) {
                                     storaged.data.reference = parsing.js.parseFunction(storaged.data.reference.params, storaged.data.reference.body);
@@ -1338,6 +1687,8 @@
                                 delete storaged.data.constr;
                                 return storaged.data;
                             } else {
+                                //Log message
+                                logs.log('[MODULES]:: module [' + name + '] will be updated.', logs.types.NOTIFICATION);
                                 localStorage.del(name);
                                 return null;
                             }
@@ -1348,7 +1699,7 @@
                     }
                     return null;
                 },
-                getHash : function (name){
+                getHash     : function (name){
                     /// <summary>
                     /// Returns hash of resource from repository
                     /// </summary>
@@ -1366,7 +1717,7 @@
                     }
                     return null;
                 },
-                call    : function (name) {
+                call        : function (name) {
                     /// <summary>
                     /// Try find resource into repository and load it if necessary 
                     /// </summary>
@@ -1376,27 +1727,32 @@
                         settings    = modules.registry.getSettings(name),
                         repository  = null;
                     if (settings !== null) {
-                        if (settings.hash) {
+                        if (typeof settings.hash !== 'undefined') {
                             overhead.register.add(options.register.MODULES_HISTROY, modules.tools.clearName(name));
                             repository = modules.repository.get(modules.tools.fullName(name), settings.hash);
                             if (repository !== null) {
                                 modules.attach.safely(repository);
+                                return true;
                             } else {
                                 if (settings.source.toLocaleString().indexOf('.js') === settings.source.length - '.js'.length) {
                                     system.resources.js.connect(settings.source, null, null);
+                                    return true;
                                 }
                                 if (settings.source.toLocaleString().indexOf('.css') === settings.source.length - '.css'.length) {
                                     system.resources.css.connect(settings.source, null, null, false);
+                                    return true;
                                 }
                             }
                         }
                     }
+                    logs.log('[MODULES]:: module [' + name + '] cannot be called. Check definitions in registry [flex.registry.modules.js].', logs.types.CRITICAL);
+                    return false;
                 }
             },
             tools       : {
                 fullName    : function (library) {
                     library = library.toLowerCase();
-                    return (library.indexOf('flex.libraries.') !== 0 ? 'flex.libraries.' + library : library);
+                    return (library.indexOf('flex.libraries.') !== 0 ? 'flex.libraries.' + library : library).replace(/\.\./gi, '.');
                 },
                 clearName   : function (library) {
                     library = library.toLowerCase().replace('flex.', '');
@@ -1418,8 +1774,13 @@
                             resources,
                             function (resource) {
                                 if (oop.objects.validate(resource, [{ name: 'url',  type: 'string'                  },
-                                                                    { name: 'hash', type: 'string', value: 'no_hash'}]) !== false) {
+                                                                    { name: 'hash', type: 'string', value: false    }]) !== false) {
+                                    resource.autoHash   = resource.hash === false ? true : false;
+                                    resource.hash       = resource.hash === false ? hashes.get(resource.url) : resource.hash;
                                     external.repository.call(resource.url, resource.hash);
+                                    if (resource.autoHash === true) {
+                                        hashes.update.add(resource.url);
+                                    }
                                 }
                             }
                         );
@@ -1451,7 +1812,7 @@
                     if (config.defaults.resources.USE_STORAGED === false) {
                         system.resources.css.connect(url, onLoad, onError);
                     } else {
-                        system.resources.css.adoption(content);
+                        system.resources.css.adoption(content, null, system.url.restoreFullURL(url));
                         system.handle(onLoad, null, 'external.embody', this);
                     }
                     return true;
@@ -1598,6 +1959,7 @@
                         null
                     );
                     request.send();
+                    logs.log('[EXTERNAL]:: resource: [' + url + '] will be reloaded.', logs.types.NOTIFICATION);
                 },
                 success : function (url, response, hash, embody) {
                     external.repository.add({
@@ -1612,9 +1974,10 @@
                             body: response.original
                         });
                     }
+                    logs.log('[EXTERNAL]:: resource: [' + url + '] is reloaded.', logs.types.NOTIFICATION);
                 },
                 fail    : function (request, url, response, hash) {
-                    logs.log('Cannot load resource: [' + url + '].', logs.types.CRITICAL);
+                    logs.log('[EXTERNAL]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
                 }
             },
         };
@@ -1630,6 +1993,8 @@
                                 if (oop.objects.validate(group, [   { name: 'resources',    type: 'array'                   },
                                                                     { name: 'storage',      type: 'boolean',    value: true },
                                                                     { name: 'finish',       type: 'function',   value: null }]) !== false) {
+                                    //Validate resources
+                                    group.resources = group.resources.filter(function (resource) { return typeof resource.url === 'string' ? true : false; });
                                     //Make register
                                     overhead.register.open(
                                         id,
@@ -1638,8 +2003,13 @@
                                     );
                                     //Make calls
                                     group.resources.forEach(function (resource) {
-                                        if (oop.objects.validate(resource, [{ name: 'url',      type: 'string' },
-                                                                            { name: 'after',    type: 'array', value: false }]) !== false) {
+                                        if (oop.objects.validate(resource, [{ name: 'url',      type: 'string'                  },
+                                                                            { name: 'hash',     type: 'string', value: false    },
+                                                                            { name: 'after',    type: 'array',  value: false    }]) !== false) {
+                                            if (resource.hash === false) {
+                                                resource.hash = hashes.get(resource.url);
+                                                hashes.update.add(resource.url);
+                                            }
                                             asynchronous.repository.call(resource, id, group.storage);
                                         }
                                     });
@@ -1659,7 +2029,9 @@
                                 overhead.register.done(id, url);
                                 asynchronous.wait.check();
                             },
-                            null
+                            function () {
+                                logs.log('[ASYNCHRONOUS]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
+                            }
                         );
                         return false;
                     } else {
@@ -1668,16 +2040,22 @@
                             wrapper.call(window);
                             return true;
                         } catch (e) {
-                            logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
+                            logs.log('[ASYNCHRONOUS]:: during initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
                             return false;
                         }
                     }
                 };
                 function CSS(id, content, url, storage) {
                     if (config.defaults.resources.USE_STORAGED === false || storage === false) {
-                        system.resources.css.connect(url, null, null);
+                        system.resources.css.connect(
+                            url,
+                            null,
+                            function () {
+                                logs.log('[ASYNCHRONOUS]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
+                            }
+                        );
                     } else {
-                        system.resources.css.adoption(content);
+                        system.resources.css.adoption(content, null, system.url.restoreFullURL(url));
                     }
                     return true;
                 };
@@ -1713,6 +2091,7 @@
                     /// <param name="parameters" type="Object">Object of module:    &#13;&#10;
                     /// {   [string]    url,                                        &#13;&#10;
                     ///     [string]    body,                                       &#13;&#10;
+                    ///     [string]    hash,                                       &#13;&#10;
                     /// }</param>
                     /// <returns type="boolean">true if success and false if not</returns>
                     if (config.defaults.resources.USE_STORAGED !== false) {
@@ -1721,6 +2100,7 @@
                             JSON.stringify(
                                 {
                                     body: parameters.body,
+                                    hash: parameters.hash,
                                 }
                             ),
                             true
@@ -1728,22 +2108,23 @@
                     }
                     return null;
                 },
-                get : function (url) {
+                get : function (url, hash) {
                     /// <summary>
                     /// Get resource from repository
                     /// </summary>
-                    /// <param name="url"   type="string">URL of resource</param>
+                    /// <param name="url" type="string">URL of resource</param>
                     /// <returns type="object">Value of resource if success and NULL if not</returns>
                     var localStorage    = system.localStorage,
                         storaged        = localStorage.get(url, true);
                     if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                         try {
                             storaged = JSON.parse(storaged);
-                            if (storaged.hash === hash) {
-                                return storaged;
-                            } else {
+                            if (storaged.hash !== hash) {
+                                logs.log('[ASYNCHRONOUS]:: resource [' + url + '] will be updated.', logs.types.NOTIFICATION);
                                 localStorage.del(url);
                                 return null;
+                            } else {
+                                return storaged;
                             }
                         } catch (e) {
                             localStorage.del(url);
@@ -1754,7 +2135,7 @@
                 },
                 call: function (resource, id, storage) {
                     function load(resource, id, storage) {
-                        var repository = asynchronous.repository.get(resource.url);
+                        var repository = asynchronous.repository.get(resource.url, resource.hash);
                         if (repository !== null || storage === false) {
                             asynchronous.embody({
                                 url     : resource.url,
@@ -1763,7 +2144,7 @@
                                 storage : storage
                             });
                         } else {
-                            asynchronous.loader.load(resource.url, id, true, storage);
+                            asynchronous.loader.load(resource.url, id, true, storage, resource.hash);
                         }
                     };
                     /// <summary>
@@ -1789,17 +2170,17 @@
                 }
             },
             loader      : {
-                load    : function (url, id, embody, storage) {
+                load    : function (url, id, embody, storage, hash) {
                     var request = ajax.create(
                             null,
                             url,
                             'get',
                             null,
                             {
-                                success: function (response, request) {
-                                    asynchronous.loader.success(url, response, id, embody, storage);
+                                success : function (response, request) {
+                                    asynchronous.loader.success(url, response, id, embody, storage, hash);
                                 },
-                                fail: function (response, request) {
+                                fail    : function (response, request) {
                                     asynchronous.loader.fail(request, url, response, id);
                                 }
                             },
@@ -1807,11 +2188,12 @@
                         );
                     request.send();
                 },
-                success : function (url, response, id, embody, storage) {
+                success : function (url, response, id, embody, storage, hash) {
                     if (storage !== false) {
                         asynchronous.repository.add({
                             url : url,
-                            body: response.original
+                            body: response.original,
+                            hash: hash
                         });
                     }
                     if (embody !== false) {
@@ -1824,17 +2206,17 @@
                     }
                 },
                 fail    : function (request, url, response, id) {
-                    logs.log('Cannot load resource: [' + url + '].', logs.types.CRITICAL);
+                    logs.log('[ASYNCHRONOUS]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
                 }
             },
             wait        : {
                 storage : {},
-                add     : function (resource, id, storage) {
+                add     : function (resource, id, _storage) {
                     var storage = asynchronous.wait.storage;
                     if (!storage[resource.url]) {
                         storage[resource.url]           = resource;
                         storage[resource.url].id        = id;
-                        storage[resource.url].storage   = storage;
+                        storage[resource.url].storage   = _storage;
                     }
                 },
                 remove  : function (url) {
@@ -1907,20 +2289,31 @@
                     /// <param name="body" type="string">Body of function</param>
                     /// <returns type="function">Function</returns>
                     if (typeof params === 'string' && typeof body === 'string') {
-                        return new Function(params, body);
+                        if (params === ''){
+                            return new Function(body);
+                        } else {
+                            return new Function(params, body);
+                        }
                     }
                     return null;
                 },
                 tools           : {
+                    regs    : {
+                        FUNCTION            : /^\(?function\s.*?\(.*?\)\s*?\{/gi,
+                        ARGUMENTS           : /\(.*?\)/gi,
+                        ARGUMENTS_BORDERS   : /[\(\)]/gi,
+                        BODY_END            : /\}$/gi,
+                        STRICT              : /(use strict)/gi,
+                    },
                     getBody     : function (function_str) {
                         /// <summary>
                         /// Get body of function from string representation
                         /// </summary>
                         /// <param name="function_str" type="string">String representation of function</param>
                         /// <returns type="string">String representation of function's body</returns>
-                        function_str = function_str.replace(/^(function\s*?\(.*?\)\s*?\{)/gi, '');
-                        function_str = function_str.replace(/\}$/gi, '');
-                        if (function_str.search(/(use strict)/gi) === -1) {
+                        function_str = function_str.replace(parsing.js.tools.regs.FUNCTION, '');
+                        function_str = function_str.replace(parsing.js.tools.regs.BODY_END, '');
+                        if (function_str.search(parsing.js.tools.regs.STRICT) === -1) {
                             function_str = '"use strict";' + function_str;
                         }
                         return function_str;
@@ -1931,12 +2324,12 @@
                         /// </summary>
                         /// <param name="function_str" type="string">String representation of function</param>
                         /// <returns type="string">String representation of function's parameters</returns>
-                        var matches = function_str.match(/^(function\s*?\(.*?\)\s*?\{)/gi);
+                        var matches = function_str.match(parsing.js.tools.regs.FUNCTION);
                         if (matches !== null) {
                             if (matches.length === 1) {
-                                matches = matches[0].match(/\(.*?\)/gi, '');
+                                matches = matches[0].match(parsing.js.tools.regs.ARGUMENTS);
                                 if (matches.length === 1) {
-                                    matches = matches[0].replace(/[\(\)]/g, '');
+                                    matches = matches[0].replace(parsing.js.tools.regs.ARGUMENTS_BORDERS, '');
                                     return matches;
                                 }
                             }
@@ -2010,12 +2403,19 @@
             globaly : {
                 storage : {},
                 get     : function (group, name, default_value) {
-                    /// <summary>
-                    /// Return value from closed space 
-                    /// </summary>
-                    /// <param name="group" type="string"   >Name of storage group</param>
-                    /// <param name="name"  type="string"   >Name of storage</param>
-                    /// <returns type="any">returns saved value</returns>
+                    /// <signature>
+                    ///     <summary>Return value from closed space</summary>
+                    ///     <param name="group" type="string"   >Name of storage group</param>
+                    ///     <param name="name"  type="string"   >Name of storage</param>
+                    ///     <returns type="any">returns saved value</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Return value from closed space</summary>
+                    ///     <param name="group"         type="string"   >Name of storage group</param>
+                    ///     <param name="name"          type="string"   >Name of storage</param>
+                    ///     <param name="default_value" type="any"      >Default value, if property will not be found</param>
+                    ///     <returns type="any">returns saved value</returns>
+                    /// </signature>
                     var storage = overhead.globaly.storage;
                     if (group in storage) {
                         if (name in storage[group]) {
@@ -2028,9 +2428,7 @@
                     return null;
                 },
                 set     : function (group, name, value) {
-                    /// <summary>
-                    /// Create value in closed space 
-                    /// </summary>
+                    /// <summary>Create value in closed space</summary>
                     /// <param name="group" type="string"   >Name of storage group</param>
                     /// <param name="name"  type="string"   >Name of storage</param>
                     /// <param name="value" type="any"      >Value</param>
@@ -2041,9 +2439,7 @@
                     return storage[group][name];
                 },
                 remove  : function (group, name) {
-                    /// <summary>
-                    /// Return value from closed space 
-                    /// </summary>
+                    /// <summary>Return value from closed space</summary>
                     /// <param name="group" type="string"   >Name of storage group</param>
                     /// <param name="name"  type="string"   >Name of storage</param>
                     /// <returns type="boolean">true - if removed; false - if not found</returns>
@@ -2067,14 +2463,21 @@
                     COMMON_STORAGE_NAME : 'FlexObjectStorage'
                 },
                 set     : function (element, property, value, rewrite) {
-                    /// <summary>
-                    /// Add property to virtual storage based on element
-                    /// </summary>
-                    /// <param name="element"   type="object"   >Object for attach storage</param>
-                    /// <param name="property"  type="string"   >Name of property</param>
-                    /// <param name="value"     type="any"      >Value</param>
-                    /// <param name="rewrite"   type="boolean"  >[optional] rewrite or not value</param>
-                    /// <returns type="any">value</returns>
+                    /// <signature>
+                    ///     <summary>Add property to virtual storage based on element</summary>
+                    ///     <param name="element"   type="object"   >Object for attach storage</param>
+                    ///     <param name="property"  type="string"   >Name of property</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <returns type="any">value</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Add property to virtual storage based on element</summary>
+                    ///     <param name="element"   type="object"   >Object for attach storage</param>
+                    ///     <param name="property"  type="string"   >Name of property</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <param name="rewrite"   type="boolean"  >[optional] rewrite or not value</param>
+                    ///     <returns type="any">value</returns>
+                    /// </signature>
                     var rewrite     = (typeof rewrite === "boolean" ? rewrite : true),
                         settings    = overhead.objecty.settings;
                     if (typeof element === "object" && typeof property === "string" && typeof value !== "undefined") {
@@ -2093,14 +2496,27 @@
                     return null; 
                 },
                 get     : function (element, property, remove, default_value) {
-                    /// <summary>
-                    /// Get property from virtual storage based on element
-                    /// </summary>
-                    /// <param name="element"       type="object"   >Object for attach storage</param>
-                    /// <param name="property"      type="string"   >Name of property</param>
-                    /// <param name="remove"        type="boolean"  >[optional] remove or not property from storage after value will be read</param>
-                    /// <param name="default_value" type="any"      >[optional] default value of property</param>
-                    /// <returns type="any">value</returns>
+                    /// <signature>
+                    ///     <summary>Get property from virtual storage based on element</summary>
+                    ///     <param name="element"       type="object"   >Object for attach storage</param>
+                    ///     <param name="property"      type="string"   >Name of property</param>
+                    ///     <returns type="any">value</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Get property from virtual storage based on element</summary>
+                    ///     <param name="element"       type="object"   >Object for attach storage</param>
+                    ///     <param name="property"      type="string"   >Name of property</param>
+                    ///     <param name="remove"        type="boolean"  >[optional] remove or not property from storage after value will be read</param>
+                    ///     <returns type="any">value</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Get property from virtual storage based on element</summary>
+                    ///     <param name="element"       type="object"   >Object for attach storage</param>
+                    ///     <param name="property"      type="string"   >Name of property</param>
+                    ///     <param name="remove"        type="boolean"  >[optional] remove or not property from storage after value will be read</param>
+                    ///     <param name="default_value" type="any"      >[optional] default value of property</param>
+                    ///     <returns type="any">value</returns>
+                    /// </signature>
                     var remove          = (typeof remove === "boolean" ? remove : false),
                         default_value   = (typeof default_value !== "undefined" ? default_value : null),
 						value           = null,
@@ -2133,9 +2549,7 @@
                     return null;
                 },
                 remove  : function (element, property) {
-                    /// <summary>
-                    /// Remove property from virtual storage based on element
-                    /// </summary>
+                    /// <summary>Remove property from virtual storage based on element</summary>
                     /// <param name="element"   type="object"   >Object for attach storage</param>
                     /// <param name="property"  type="string"   >Name of property</param>
                     /// <returns type="boolean">true - removed; false - not found; null - bad parameters</returns>
@@ -2233,9 +2647,7 @@
                     return new Register(name, onReadyHandle);
                 },
                 open    : function (name, keys, onReadyHandle) {
-                    /// <summary>
-                    /// Create new register
-                    /// </summary>
+                    /// <summary>Create new register</summary>
                     /// <param name="name"          type="string"       >Name of register</param>
                     /// <param name="keys"          type="array || any" >Default keys for register</param>
                     /// <param name="onReadyHandle" type="function"     >onReady handle, handle, which will be fired on all items will be done</param>
@@ -2260,9 +2672,7 @@
                     return false;
                 },
                 add     : function (name, key) {
-                    /// <summary>
-                    /// Add new key into register
-                    /// </summary>
+                    /// <summary>Add new key into register</summary>
                     /// <param name="name"  type="string">Name of register</param>
                     /// <param name="key"   type="string">New key name</param>
                     /// <returns type="boolean">true / false</returns>
@@ -2273,13 +2683,19 @@
                     return false;
                 },
                 done    : function (name, key, do_not_check) {
-                    /// <summary>
-                    /// Set item of register to DONE
-                    /// </summary>
-                    /// <param name="name"          type="string"   >Name of register</param>
-                    /// <param name="key"           type="string"   >New key name</param>
-                    /// <param name="do_not_check"  type="boolean"  >true - check is all items are ready; false - do not check</param>
-                    /// <returns type="boolean">true / false</returns>
+                    /// <signature>
+                    ///     <summary>Set item of register to DONE</summary>
+                    ///     <param name="name"          type="string"   >Name of register</param>
+                    ///     <param name="key"           type="string"   >New key name</param>
+                    ///     <returns type="boolean">true / false</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Set item of register to DONE</summary>
+                    ///     <param name="name"          type="string"   >Name of register</param>
+                    ///     <param name="key"           type="string"   >New key name</param>
+                    ///     <param name="do_not_check"  type="boolean"  >true - check is all items are ready; false - do not check</param>
+                    ///     <returns type="boolean">true / false</returns>
+                    /// </signature>
                     var storage         = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {}),
                         do_not_check    = typeof do_not_check === 'boolean' ? do_not_check : false;
                     if (storage[name]) {
@@ -2303,7 +2719,7 @@
                     }
                     return false;
                 },
-                isDone    : function (name, key) {
+                isDone  : function (name, key) {
                     /// <summary>
                     /// Is key done
                     /// </summary>
@@ -2414,15 +2830,23 @@
             core    : {
                 storage : {},
                 listen  : function (group, name, handle, id, registered_only) {
-                    /// <summary>
-                    /// Add core's events listener 
-                    /// </summary>
-                    /// <param name="group"             type="string"   >Name of event group</param>
-                    /// <param name="name"              type="string"   >Name of event</param>
-                    /// <param name="handle"            type="function" >Handle</param>
-                    /// <param name="id"                type="string"   >[optional][unique ID] ID of event</param>
-                    /// <param name="registered_only"   type="boolean"  >[optional][false] Add listener only if event was registered before</param>
-                    /// <returns type="boolean / string">return ID of listener - if attached; false - if not</returns>
+                    /// <signature>
+                    ///     <summary>Add core's events listener </summary>
+                    ///     <param name="group"             type="string"   >Name of event group</param>
+                    ///     <param name="name"              type="string"   >Name of event</param>
+                    ///     <param name="handle"            type="function" >Handle</param>
+                    ///     <param name="id"                type="string"   >[optional][unique ID] ID of event</param>
+                    ///     <returns type="boolean / string">return ID of listener - if attached; false - if not</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Add core's events listener </summary>
+                    ///     <param name="group"             type="string"   >Name of event group</param>
+                    ///     <param name="name"              type="string"   >Name of event</param>
+                    ///     <param name="handle"            type="function" >Handle</param>
+                    ///     <param name="id"                type="string"   >[optional][unique ID] ID of event</param>
+                    ///     <param name="registered_only"   type="boolean"  >[optional][false] Add listener only if event was registered before</param>
+                    ///     <returns type="boolean / string">return ID of listener - if attached; false - if not</returns>
+                    /// </signature>
                     var group           = group || null,
                         name            = name      || null,
                         handle          = handle    || null,
@@ -2503,13 +2927,19 @@
                     return storage[group][name];
                 },
                 fire    : function (group, name, params) {
-                    /// <summary>
-                    /// Call handles of registered core's event 
-                    /// </summary>
-                    /// <param name="group"     type="string"   >Name of event group</param>
-                    /// <param name="name"      type="string"   >Name of event</param>
-                    /// <param name="params"    type="any"      >Parameters for all called handles</param>
-                    /// <returns type="void">void</returns>
+                    /// <signature>
+                    ///     <summary>Call handles of registered core's event</summary>
+                    ///     <param name="group"     type="string"   >Name of event group</param>
+                    ///     <param name="name"      type="string"   >Name of event</param>
+                    ///     <returns type="void">void</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Call handles of registered core's event</summary>
+                    ///     <param name="group"     type="string"   >Name of event group</param>
+                    ///     <param name="name"      type="string"   >Name of event</param>
+                    ///     <param name="params"    type="any"      >Parameters for all called handles</param>
+                    ///     <returns type="void">void</returns>
+                    /// </signature>
                     var handles = events.core.get(group, name);
                     if (handles !== null) {
                         for (var id in handles) {
@@ -2525,6 +2955,32 @@
         };
         system = {
             handle      : function (handle_body, handle_arguments, call_point, this_argument) {
+                /// <signature>
+                ///     <summary>Run function in safely mode</summary>
+                ///     <param name="body"          type="function" >Handle</param>
+                ///     <returns type="any">Return of handle</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Run function in safely mode</summary>
+                ///     <param name="body"          type="function" >Handle</param>
+                ///     <param name="arguments"     type="any"      >Arguments for handle</param>
+                ///     <returns type="any">Return of handle</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Run function in safely mode</summary>
+                ///     <param name="body"          type="function" >Handle</param>
+                ///     <param name="arguments"     type="any"      >Arguments for handle</param>
+                ///     <param name="call_point"    type="string"   >Text for log message.</param>
+                ///     <returns type="any">Return of handle</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Run function in safely mode</summary>
+                ///     <param name="body"          type="function" >Handle</param>
+                ///     <param name="arguments"     type="any"      >Arguments for handle</param>
+                ///     <param name="call_point"    type="string"   >Text for log message.</param>
+                ///     <param name="this"          type="object"   >Context of handle</param>
+                ///     <returns type="any">Return of handle</returns>
+                /// </signature>
                 var handle_body         = handle_body || null,
                     handle_arguments    = handle_arguments || null,
                     call_point          = call_point || null,
@@ -2553,7 +3009,18 @@
             },
             localStorage: {
                 get     : function (key, decode) {
-                    var value   = null,
+                    /// <signature>
+                    ///     <summary>Get value from localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value in localStorage</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Get value from localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value in localStorage</param>
+                    ///     <param name="decode"    type="boolean"  >True - decode from BASE64String</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
+                    var value = null,
                         decode  = typeof decode === 'boolean' ? decode : false;
                     try {
                         value = window.localStorage.getItem(key);
@@ -2570,29 +3037,55 @@
                     }
                 },
                 set     : function (key, value, encode) {
-                    var result_value    = value,
+                    /// <signature>
+                    ///     <summary>Save value in localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Save value in localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <param name="decode"    type="boolean"  >True - encode to BASE64String</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
+                    var result_value = value,
                         encode          = typeof encode === 'boolean' ? encode : false;
                     try {
                         window.localStorage.removeItem(key);
                         if (encode !== false) {
+                            result_value = typeof value !== 'string' ? JSON.stringify(value) : result_value;
                             result_value = system.convertor.UTF8.   encode(result_value);
                             result_value = system.convertor.BASE64. encode(result_value);
                         }
                         window.localStorage.setItem(key, result_value);
                         return true;
                     } catch (e) {
+                        logs.log('Error during saving data into localStorage. [key]:[' + key + ']', logs.types.WARNING);
                         return false;
                     }
                 },
                 del     : function (key) {
+                    /// <signature>
+                    ///     <summary>Remove value from localStorage</summary>
+                    ///     <param name="key" type="string">Key of value</param>
+                    ///     <returns type="boolean">True - success, False - fail</returns>
+                    /// </signature>
                     try {
                         window.localStorage.removeItem(key);
                         return true;
                     } catch (e) {
+                        logs.log('Error during deleting data from localStorage. [key]:[' + key + ']', logs.types.WARNING);
                         return null;
                     }
                 },
                 getJSON : function (key) {
+                    /// <signature>
+                    ///     <summary>Get value from localStorage and convert it to JSON</summary>
+                    ///     <param name="key" type="string">Key of value in localStorage</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
                     var storaged = system.localStorage.get(key, true);
                     if (storaged !== null) {
                         try{
@@ -2605,6 +3098,12 @@
                     return null;
                 },
                 setJSON : function (key, value) {
+                    /// <signature>
+                    ///     <summary>Stringify object from JSON and save it in localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
                     return system.localStorage.set(key, JSON.stringify(value), true);
                 }
             },
@@ -2615,7 +3114,43 @@
                     CSS_TIMER_DURATION : 5000,
                 },
                 css: {
-                    connect : function (url, onLoad, onError) {
+                    settings    : {
+                        URLS    : [
+                            {
+                                reg     : /url\('([^\)'].*?)'\)/gi,
+                                left    : /url\('/gi,
+                                right   : /'\)/gi,
+                                _left   : 'url("',
+                                _right  : '")',
+                            },
+                            {
+                                reg     : /url\("([^\)"].*?)"\)/gi,
+                                left    : /url\("/gi,
+                                right   : /"\)/gi,
+                                _left   : 'url("',
+                                _right  : '")',
+                            },
+                        ]
+                    },
+                    connect     : function (url, onLoad, onError) {
+                        /// <signature>
+                        ///     <summary>Connect CSS resource via LINK in HEAD of page</summary>
+                        ///     <param name="url"       type="string"   >URL to resource</param>
+                        ///     <returns type="boolean">true / false</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Connect CSS resource via LINK in HEAD of page</summary>
+                        ///     <param name="url"       type="string"   >URL to resource</param>
+                        ///     <param name="onLoad"    type="function" >Callback on load will be finished</param>
+                        ///     <returns type="boolean">true / false</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Connect CSS resource via LINK in HEAD of page</summary>
+                        ///     <param name="url"       type="string"   >URL to resource</param>
+                        ///     <param name="onLoad"    type="function" >Callback on load will be finished</param>
+                        ///     <param name="onError"   type="function" >Callback on some error</param>
+                        ///     <returns type="boolean">true / false</returns>
+                        /// </signature>
                         function addLink(url) {
                             var settings    = system.resources.settings,
                                 link        = document.createElement("LINK");
@@ -2716,25 +3251,106 @@
                         }
                         return false;
                     },
-                    adoption: function (cssText, documentLink) {
-                        var documentLink    = (typeof documentLink === "object" ? (typeof documentLink.body !== "undefined" ? documentLink : document) : document),
-                            style           = documentLink.createElement("style");
-                        try {
-                            style.type = "text/css";
-                            if (style.styleSheet) {
-                                style.styleSheet.cssText = cssText;
-                            } else {
-                                style.appendChild(documentLink.createTextNode(cssText));
+                    adoption    : function (cssText, documentLink, url) {
+                        /// <signature>
+                        ///     <summary>Inject CSS text as STYLE into HEAD</summary>
+                        ///     <param name="cssText"       type="string"   >CSS text</param>
+                        ///     <returns type="object">link to created node STYLE</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Inject CSS text as STYLE into HEAD</summary>
+                        ///     <param name="cssText"       type="string"   >CSS text</param>
+                        ///     <param name="documentLink"  type="object"   >Link to document</param>
+                        ///     <returns type="object">link to created node STYLE</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Inject CSS text as STYLE into HEAD</summary>
+                        ///     <param name="cssText"       type="string"   >CSS text</param>
+                        ///     <param name="documentLink"  type="object"   >Link to document</param>
+                        ///     <param name="url"           type="string"   >URL of parent to correct paths in CSS text</param>
+                        ///     <returns type="object">link to created node STYLE</returns>
+                        /// </signature>
+                        var documentLink = documentLink !== null ? (typeof documentLink === "object" ? (typeof documentLink.body !== "undefined" ? documentLink : document) : document) : document,
+                            style           = documentLink.createElement("style"),
+                            url             = typeof url === 'string' ? url : null;
+                        if (typeof cssText === 'string') {
+                            try {
+                                if (url !== null) {
+                                    cssText = system.resources.css.correctPaths(cssText, url);
+                                }
+                                style.type  = "text/css";
+                                if (style.styleSheet) {
+                                    style.styleSheet.cssText = cssText;
+                                } else {
+                                    style.appendChild(documentLink.createTextNode(cssText));
+                                }
+                                documentLink.head.appendChild(style);
+                                return style;
+                            } catch (e) {
+                                logs.log(
+                                    'Error during adoption of CSS resource: url = [' + url + '], cssText starts from [' + cssText.substr(0, 50) + ' (...)]',
+                                    logs.types.CRITICAL
+                                );
+                                return null;
                             }
-                            documentLink.head.appendChild(style);
-                            return style;
-                        } catch (e) {
-                            return null;
                         }
+                        return null;
+                    },
+                    correctPaths: function (cssText, parent_url) {
+                        function correct(target_url, parent_url) {
+                            var url = null;
+                            if (target_url.trim().toLowerCase().indexOf('data:') !== 0) {
+                                url = system.url.parse(target_url, parent_url);
+                                if (url !== null) {
+                                    return url.url;
+                                } else {
+                                    return target_url;
+                                }
+                            } else {
+                                return target_url;
+                            }
+                        };
+                        if (config.defaults.settings.CHECK_PATHS_IN_CSS !== false && typeof parent_url === 'string') {
+                            if (parent_url !== '') {
+                                system.resources.css.settings.URLS.forEach(function (sets) {
+                                    var urls = cssText.match(sets.reg);
+                                    if (urls instanceof Array) {
+                                        urls.forEach(function (url) {
+                                            var href = url;
+                                            href = href.replace(sets.left, '');
+                                            href = href.replace(sets.right, '');
+                                            href = correct(href, parent_url);
+                                            if (href !== null) {
+                                                cssText = cssText.replace(url, sets._left + href + sets._right);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
+                        }
+                        return cssText;
                     }
                 },
                 js: {
                     connect : function (url, onLoad, onError) {
+                        /// <signature>
+                        ///     <summary>Connect JS resource via LINK in HEAD of page</summary>
+                        ///     <param name="url"       type="string"   >URL to resource</param>
+                        ///     <returns type="boolean">link to created node SCRIPT</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Connect JS resource via LINK in HEAD of page</summary>
+                        ///     <param name="url"       type="string"   >URL to resource</param>
+                        ///     <param name="onLoad"    type="function" >Callback on load will be finished</param>
+                        ///     <returns type="boolean">link to created node SCRIPT</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Connect JS resource via LINK in HEAD of page</summary>
+                        ///     <param name="url"       type="string"   >URL to resource</param>
+                        ///     <param name="onLoad"    type="function" >Callback on load will be finished</param>
+                        ///     <param name="onError"   type="function" >Callback on some error</param>
+                        ///     <returns type="boolean">link to created node SCRIPT</returns>
+                        /// </signature>
                         function addScript(url) {
                             var settings    = system.resources.settings,
                                 script      = document.createElement("SCRIPT");
@@ -2764,7 +3380,18 @@
                         return false;
                     },
                     adoption: function (jsScript, onFinish) {
-                        var resourceJS  = document.createElement("SCRIPT"),
+                        /// <signature>
+                        ///     <summary>Generate script within JS text</summary>
+                        ///     <param name="jsScript"  type="string"   >JS text</param>
+                        ///     <returns type="void">void</returns>
+                        /// </signature>
+                        /// <signature>
+                        ///     <summary>Generate script within JS text</summary>
+                        ///     <param name="jsScript"  type="string"   >JS text</param>
+                        ///     <param name="onFinish"  type="function" >Callback on finish</param>
+                        ///     <returns type="void">void</returns>
+                        /// </signature>
+                        var resourceJS = document.createElement("SCRIPT"),
                             onFinish    = onFinish || null,
                             jsScript    = jsScript || null;
                         if (jsScript !== null) {
@@ -2837,6 +3464,198 @@
                     }
                 }
             },
+            url     : {
+                settings: {
+                    parser: {
+                        LAST        : /([^\/]*)$/gi,
+                        CORRECTION  : /[\/\\]$/gi,
+                        BAD_SLASH   : /\\/gi
+                    }
+                },
+                getURLInfo      : function (url) {
+                    var a       = document.createElement('a'),
+                        result  = null;
+                    if (typeof url === 'string') {
+                        a.setAttribute('href', url);
+                        result = {
+                            hostname: a.hostname,
+                            host    : a.host,
+                            port    : a.port,
+                            protocol: a.protocol,
+                            isFull  : false
+                        };
+                        if (result.hostname !== '') {
+                            result.isFull = url.indexOf(result.protocol + '//' + result.hostname) !== 0 ? false : true;
+                        } else {
+                            result.isFull = false;
+                        }
+                    }
+                    return result;
+                },
+                getCurrentDomain: function () {
+                    var url = null;
+                    if (window.location.origin) {
+                        url = window.location.origin;
+                    } else {
+                        url = window.location.protocol + '//' + window.location.host;
+                    }
+                    return url;
+                },
+                restoreFullURL  : function (url){
+                    /// <signature>
+                    ///     <summary>Add current domain to URL (if there are no definition of domain)</summary>
+                    ///     <param name="url"type="string">URL</param>
+                    ///     <returns type="object">Restored URL</returns>
+                    /// </signature>
+                    var _url = url;
+                    if (typeof url === 'string') {
+                        _url = system.url.getURLInfo(_url);
+                        if (_url.isFull === false) {
+                            if (_url.hostname === '') {
+                                return system.url.getCurrentDomain() + (url.indexOf('/') !== 0 ? '/' : '') + url;
+                            } else {
+                                return _url.protocol + '//' + _url.host + (url.indexOf('/') !== 0 ? '/' : '') + url;
+                            }
+                        } else {
+                            return url;
+                        }
+                    }
+                    return null;
+                },
+                parse           : function (url, origin) {
+                    /// <signature>
+                    ///     <summary>Parsing of URL</summary>
+                    ///     <param name="url"       type="string">URL</param>
+                    ///     <returns type="object">Parsed URL</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Parsing of URL</summary>
+                    ///     <param name="url"       type="string">URL</param>
+                    ///     <param name="origin"    type="string">Original URL (i can be needed if URL hasn't domain definition. Like this ../folder/resource.ext</param>
+                    ///     <returns type="object">Parsed URL</returns>
+                    /// </signature>
+                    function steps(url) {
+                        var count       = 0,
+                            valid       = true,
+                            previous    = -1,
+                            clear_url   = '';
+                        url.split('/').forEach(function (part, index) {
+                            if (part === '..') {
+                                count += 1;
+                                if (previous !== -1) {
+                                    if (previous !== index - 1) {
+                                        valid = false;
+                                    }
+                                }
+                                previous = index;
+                            } else {
+                                clear_url += part;
+                            }
+                        });
+                        return (valid === true ? { count: count, url: clear_url } : false);
+                    };
+                    function correction(url) {
+                        url = url.replace(system.url.settings.parser.CORRECTION, '');
+                        url = url.replace(system.url.settings.parser.BAD_SLASH, '/');
+                        return url;
+                    };
+                    var result      = null,
+                        info        = null,
+                        origin      = typeof origin === 'string' ? origin : null,
+                        back_steps  = 0,
+                        _origin     = null;
+                    if (typeof url === 'string') {
+                        url     = correction(url);
+                        info    = system.url.getURLInfo(url);
+                        if (info !== null) {
+                            back_steps = steps(url);
+                            if (back_steps !== false) {
+                                if (back_steps.count > 0) {
+                                    /*If URL has some "back" direction like [../../folder/resource.ext]
+                                    * In this case we need origin URL to build valid path
+                                    * */
+                                    if (origin !== null) {
+                                        _origin = system.url.parse(origin);
+                                        if (_origin !== null) {
+                                            if (back_steps.count < _origin.parts.length - 1) {
+                                                _origin.parts.splice(_origin.parts.length - back_steps.count, back_steps.count);
+                                                _origin.parts = _origin.parts.map(function (item) {
+                                                    return (item === '//' ? '' : item);
+                                                });
+                                                url = _origin.parts.join('/') + '/' + back_steps.url;
+                                                return system.url.parse(url);
+                                            }
+                                        }
+                                    }
+                                } else {
+                                    if (info.isFull === false){
+                                        /*If URL has not root path. URL looks like [folder/resource.ext] or [resource.ext]
+                                        * In this case we need origin URL to build valid path
+                                        */
+                                        origin  = origin === null ? system.url.getCurrentDomain() : origin;
+                                        _origin = system.url.parse(origin);
+                                        if (_origin !== null) {
+                                            if (url.indexOf('~/') === 0) {
+                                                url = url.replace('~', _origin.home);
+                                            } else {
+                                                _origin.parts = _origin.parts.map(function (item) {
+                                                    return (item === '//' ? '' : item);
+                                                });
+                                                url = _origin.parts.join('/') + (url.indexOf('/') !== 0 ? '/' : '') + url;
+                                            }
+                                            return system.url.parse(url);
+                                        }
+                                    } else {
+                                        /*If we are in this section, it means that we have everything to parse URL*/
+                                        result  = {
+                                            target      : url.match(system.url.settings.parser.LAST),
+                                            _path       : '',
+                                            _url        : url,
+                                            _hostname   : info.hostname,
+                                            hostname    : info.hostname !== '' ? info.hostname  : window.location.hostname,
+                                            _host       : info.host,
+                                            host        : info.host     !== '' ? info.host      : window.location.host,
+                                            _port       : info.port,
+                                            port        : info.port     !== '' ? info.port      : window.location.port,
+                                            _protocol   : info.protocol,
+                                            protocol    : info.protocol !== ':'? info.protocol  : window.location.protocol,
+                                            home        : info.hostname === '' ? window.location.protocol   + '//' + window.location.host   : info.protocol + '//' + info.host,
+                                            _home       : info.hostname !== '' ? info.protocol + '//' + info.host : '',
+                                            parts       : null
+                                        };
+                                        if (result.target.length > 0) {
+                                            if (result.target instanceof Array) {
+                                                result.target = result.target[0];
+                                                if (result.target.indexOf('.') === -1) {
+                                                    result.target = '';
+                                                }
+                                            } else {
+                                                result.target = '';
+                                            }
+                                            result._path    = url.replace(result.target, '');
+                                            if (result._home === '') {
+                                                result.path = result.home + (result._path.  indexOf('/') === 0 ? '' : '/') + result._path;
+                                                result.url  = result.home + (result._url.   indexOf('/') === 0 ? '' : '/') + result._url;
+                                            } else {
+                                                result.path = result._path;
+                                                result.url  = result._url;
+                                            }
+                                            result.parts = result.url.split('/').map(function (item) {
+                                                return (item === '' ? '//' : item);
+                                            });
+                                            if (result.parts.indexOf(result.target) !== -1) {
+                                                result.parts.splice(result.parts.indexOf(result.target), 1);
+                                            }
+                                            return result;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    return null;
+                }
+            }
         };
         IDs = {
             id: (function () {
@@ -2849,12 +3668,17 @@
         };
         logs = {
             types       : {
-                CRITICAL        : 'critical',
-                LOGICAL         : 'logical',
-                WARNING         : 'warning',
-                NOTIFICATION    : 'notification'
+                CRITICAL        : 'CRITICAL',
+                LOGICAL         : 'LOGICAL',
+                WARNING         : 'WARNING',
+                NOTIFICATION    : 'NOTIFICATION'
             },
             parseError  : function (e) {
+                /// <signature>
+                ///     <summary>Create string from error object</summary>
+                ///     <param name="error" type="object">Error object</param>
+                ///     <returns type="string">String</returns>
+                /// </signature>
                 var message = e.name + ": " + e.message + "\r\n--------------------------------------------";
                 for (var property in e) {
                     if (property !== "name" && property !== "message") {
@@ -2864,10 +3688,29 @@
                 return message;
             },
             log         : function (message, type) {
+                /// <signature>
+                ///     <summary>Add log message to console</summary>
+                ///     <param name="message"   type="string">Message</param>
+                ///     <returns type="void">void</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Add log message to console</summary>
+                ///     <param name="message"   type="string">Message</param>
+                ///     <param name="type"      type="string">Type of message</param>
+                ///     <returns type="void">void</returns>
+                /// </signature>
                 var type = type || '';
                 if (console) {
                     if (typeof console.log !== 'undefined') {
                         console.log(message);
+                        logs.callEvent(message, type);
+                    }
+                }
+            },
+            callEvent: function (message, type) {
+                if (oop.namespace.get('flex.registry.events.system.logs') !== null) {
+                    if (typeof flex.registry.events.system.logs[type] !== 'undefined') {
+                        events.core.fire(flex.registry.events.system.logs.GROUP, flex.registry.events.system.logs[type], message);
                     }
                 }
             }
@@ -2893,6 +3736,12 @@
                             }
                             if (node !== null) {
                                 return new wrappers.constructors.node(node);
+                            }
+                        } else {
+                            if (typeof selector !== 'undefined') {
+                                if (typeof selector.nodeName === 'string') {
+                                    return new wrappers.constructors.node(node);
+                                }
                             }
                         }
                         return null;
@@ -2922,21 +3771,56 @@
                             if (nodes !== null) {
                                 return new wrappers.constructors.nodes(nodes);
                             }
+                        } else {
+                            if (typeof selector !== 'undefined') {
+                                if (typeof selector.length === 'number') {
+                                    if (selector.length > 0) {
+                                        if (typeof selector[0] === 'string') {
+                                            nodes = [];
+                                            Array.prototype.forEach.call(selector, function (selector, index) {
+                                                var node = (document_link || document).querySelector(selector);
+                                                if (node !== null) {
+                                                    nodes.push(node);
+                                                }
+                                            });
+                                            return new wrappers.constructors.nodes(nodes);
+                                        } else if (typeof selector[0].nodeName === 'string') {
+                                            return new wrappers.constructors.nodes(nodes);
+                                        }
+                                    }
+                                }
+                            }
                         }
                         return null;
                     };
                 }()),
-                array   : function () {
-
+                array   : function (_array) {
+                    if (_array instanceof Array) {
+                        return new wrappers.constructors.array(_array);
+                    } else {
+                        return null;
+                    }
                 },
-                string  : function () {
-
+                string  : function (_string) {
+                    if (typeof _string === 'string') {
+                        return new wrappers.constructors.string(_string);
+                    } else {
+                        return null;
+                    }
                 },
-                boolean : function () {
-
+                boolean : function (_boolean) {
+                    if (typeof _boolean === 'boolean') {
+                        return new wrappers.constructors.boolean(_boolean);
+                    } else {
+                        return null;
+                    }
                 },
-                object  : function () {
-
+                object  : function (_object) {
+                    if (typeof _object === 'object') {
+                        return new wrappers.constructors.object(_object);
+                    } else {
+                        return null;
+                    }
                 },
             },
             prototypes  : {
@@ -3029,14 +3913,37 @@
         //Private part
         privates = {
             init    : config.init,
-            oop     : oop,
+            oop     : {
+                objects     : {
+                    copy        : oop.objects.copy,
+                    extend      : oop.objects.extend,
+                    forEach     : oop.objects.forEach,
+                    validate    : oop.objects.validate,
+                    isValueIn   : oop.objects.isValueIn,
+                },
+                classes     : {
+                    of          : oop.classes.of
+                },
+                namespace   : {
+                    create      : oop.namespace.create,
+                    get         : oop.namespace.get,
+                }
+            },
             modules : {
                 attach : modules.attach.safely
             },
             unique  : IDs.id,
             events  : {
-                DOM     : events.DOM,
-                core    : events.core
+                DOM : {
+                    add     : events.DOM.add,
+                    remove  : events.DOM.remove,
+                },
+                core: {
+                    fire    : events.core.fire,
+                    listen  : events.core.listen,
+                    register: events.core.register,
+                    remove  : events.core.remove,
+                }
             },
             overhead: {
                 globaly: {
@@ -3081,26 +3988,38 @@
             },
             resources: {
                 parse   : {
-                    css : parsing.css
+                    css : {
+                        stringify: parsing.css.stringify
+                    }
                 },
                 attach  : {
-                    css: {
+                    css : {
                         connect : system.resources.css.connect,
                         adoption: system.resources.css.adoption,
                     },
-                    js: {
+                    js  : {
                         connect : system.resources.js.connect,
                         adoption: system.resources.js.adoption,
                     }
                 }
             },
             system  : {
-                handle : system.handle
+                handle  : system.handle,
+                url     : {
+                    parse   : system.url.parse,
+                    restore : system.url.restoreFullURL
+                }
             },
             localStorage: {
-                add : system.localStorage.set,
-                get : system.localStorage.get,
-                del : system.localStorage.del
+                add     : system.localStorage.set,
+                get     : system.localStorage.get,
+                del     : system.localStorage.del,
+                addJSON : system.localStorage.setJSON,
+                getJSON : system.localStorage.getJSON,
+            },
+            hashes: {
+                get     : hashes.get,
+                update  : hashes.update.add
             }
         };
         //Settings of flex
@@ -3111,17 +4030,42 @@
         events.core.listen('modules.registry', 'ready', modules.attach.queue.proceed);
         //Build wrappers
         wrappers.build();
+        //Add wrappers
+        oop.wrappers.objects();
         //Public methods and properties
         return {
             init    : privates.init,
-            oop     : privates.oop,
+            oop     : {
+                objects     : {
+                    copy        : privates.oop.objects.copy,
+                    extend      : privates.oop.objects.extend,
+                    forEach     : privates.oop.objects.forEach,
+                    validate    : privates.oop.objects.validate,
+                    isValueIn   : privates.oop.objects.isValueIn,
+                },
+                classes     : {
+                    of          : privates.oop.classes.of
+                },
+                namespace   : {
+                    create      : privates.oop.namespace.create,
+                    get         : privates.oop.namespace.get,
+                }
+            },
             modules : {
                 attach : privates.modules.attach
             },
             unique  : privates.unique,
             events  : {
-                DOM : privates.events.DOM,
-                core: privates.events.core,
+                DOM : {
+                    add     : privates.events.DOM.add,
+                    remove  : privates.events.DOM.remove,
+                },
+                core: {
+                    fire    : privates.events.core.fire,
+                    listen  : privates.events.core.listen,
+                    register: privates.events.core.register,
+                    remove  : privates.events.core.remove,
+                }
             },
             overhead: {
                 globaly: {
@@ -3145,7 +4089,9 @@
             },
             resources: {
                 parse   : {
-                    css : privates.resources.parse.css
+                    css : {
+                        stringify: privates.resources.parse.css.stringify
+                    }
                 },
                 attach  : {
                     css : {
@@ -3159,19 +4105,29 @@
                 }
             },
             localStorage : {
-                add: privates.localStorage.add,
-                get: privates.localStorage.get,
-                del: privates.localStorage.del
+                add     : privates.localStorage.add,
+                get     : privates.localStorage.get,
+                del     : privates.localStorage.del,
+                addJSON : privates.localStorage.addJSON,
+                getJSON : privates.localStorage.getJSON,
             },
             system : {
-                handle : privates.system.handle
+                handle  : privates.system.handle,
+                url     : {
+                    parse   : privates.system.url.parse,
+                    restore : privates.system.url.restore
+                }
             },
             logs: {
                 parseError  : privates.logs.parseError,
                 log         : privates.logs.log,
                 types       : privates.logs.types
             },
-            callers: {
+            hashes  : {
+                get     : privates.hashes.get,
+                update  : privates.hashes.update
+            },
+            callers : {
                 node    : privates.callers.node,
                 nodes   : privates.callers.nodes,
                 array   : privates.callers.array,
@@ -3202,4 +4158,5 @@
 /*TODO:
 * fix problem with IE9 -> limit for CSS - 4095 selectors per one stylesheet
 * Prevent double initialization (and do not damage intellisense)
+* parseFunction -> has potential error with parsing params. There are should be array, but not string
 */

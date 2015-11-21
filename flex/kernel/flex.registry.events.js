@@ -44,6 +44,17 @@
                         CHANGE      : 'change',
                     }
                 }
+            },
+            /// <field type = 'object'>Events of Flex (system events)</field>
+            system: {
+                /// <field type = 'object'>Events of logs</field>
+                logs: {
+                    GROUP       : 'flex.system.logs.messages',
+                    CRITICAL    : 'critical',
+                    LOGICAL     : 'logical',
+                    WARNING     : 'warning',
+                    NOTIFICATION: 'notification'
+                }
             }
         };
     }

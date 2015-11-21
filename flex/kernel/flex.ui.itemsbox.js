@@ -1,9 +1,10 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
-/// <reference path='flex.core.js' />
-/// <reference path='intellisense/flex.libraries.intellisense.js' />
-/// <reference path='intellisense/flex.registry.events.intellisense.js' />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path='intellisense/flex.callers.node.intellisense.js' />
+/// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
+/// <reference path='intellisense/flex.intellisense.js' />
 /// <module>
 ///     <summary>
 ///         Module control items box behavior 
@@ -73,11 +74,12 @@
             };
             initializer = {
                 validate: {
-                    parameters  : function (parameters) {
-                        return flex.oop.objects.validate(parameters, [  { name: 'parent',   type: ['node', 'string'],   value: null, handle: html.helpers.validateNode  },
-                                                                        { name: 'content',  type: ['node', 'string'],   value: null, handle: html.helpers.validateNode  },
-                                                                        { name: 'events',   type: 'object',             value: {}               },
-                                                                        { name: 'id',       type: 'string',             value: flex.unique()    }]);
+                    parameters: function (parameters) {
+                        /**/
+                        return _object(parameters).validate([   { name: 'parent',   type: ['node', 'string'],   value: null, handle: html.helpers.validateNode },
+                                                                { name: 'content',  type: ['node', 'string'],   value: null, handle: html.helpers.validateNode },
+                                                                { name: 'events',   type: 'object',             value: {}               },
+                                                                { name: 'id',       type: 'string',             value: flex.unique()    }]);
                     },
                     events      : function (events) {
                         return flex.oop.objects.validate(events, [{ name: 'resize', type: 'function', value: null }]);

@@ -28,7 +28,7 @@
                     BODY            : /<body>(\n|\r|\s|.)*?<\/body>/gi,
                     BODY_TAG        : /<\s*body\s*>|<\s*\/\s*body\s*>/gi,
                     BODY_CLEAR      : /^[\n\r\s]*|[\n\r\s]*$/gi,
-                    CSS             : /<link\s+.*?\/>/gi,
+                    CSS             : /<link\s+.*?\/>|<link\s+.*?\>/gi,
                     CSS_HREF        : /href\s*\=\s*"(.*?)"|href\s*\=\s*'(.*?)'/gi,
                     CSS_REL         : /rel\s*=\s*"stylesheet"|rel\s*=\s*'stylesheet'/gi,
                     CSS_TYPE        : /type\s*=\s*"text\/css"|type\s*=\s*'text\/css'/gi,
@@ -304,10 +304,12 @@
                             //Call callback
                             transport.callback(parameters.callbacks.success, data.template);
                             return false;
+                            /*
                             setTimeout(function () {
                                 transport.callback(parameters.callbacks.success, data.template);
                             }, 10);
-                        });
+                            */
+                        }, flex.system.url.restore(parameters.url));
                         return data.template;
                     }
                     return false;
@@ -398,7 +400,7 @@
                         function getString(something) {
                             function getValue(something) {
                                 var value = '';
-                                if (something.length && typeof something !== 'string') {
+                                if (something.length && typeof something !== 'string' && isNode(something) === false) {
                                     Array.prototype.forEach.call(
                                         something,
                                         function (_something) {
@@ -422,11 +424,14 @@
                                 }
                                 return value;
                             };
-                            if (typeof something === 'function' && !something.length) {
-                                something = something();
+                            if (typeof something !== 'undefined') {
+                                if (typeof something === 'function' && !something.length) {
+                                    something = something();
+                                }
+                                something = getValue(something);
+                                return something;
                             }
-                            something = getValue(something);
-                            return something;
+                            return '';
                         };
                         var regs    = settings.regs,
                             current = null,
@@ -457,11 +462,18 @@
             };
             resources   = {
                 css: {
-                    load    : function (hrefs, onFinish) {
+                    load    : function (hrefs, onFinish, baseURL) {
                         var journal     = flex.overhead.globaly.get(settings.storage.VIRTUAL_STORAGE_GROUP, settings.storage.CSS_ATTACHED_JOURNAL, {}),
                             onFinish    = onFinish || null,
                             register_id = flex.unique();
                         if (hrefs.length > 0) {
+                            hrefs = hrefs.map(function (href) {
+                                var url = flex.system.url.parse(href, baseURL);
+                                return (url !== null ? url.url : false);
+                            });
+                            hrefs = hrefs.filter(function (href) {
+                                return (href !== false ? true : false);
+                            });
                             if (onFinish !== null) {
                                 flex.overhead.register.open(register_id, hrefs, onFinish);
                             } else {
@@ -490,7 +502,7 @@
                                             );
                                         } else {
                                             //Load css from storage
-                                            flex.resources.attach.css.adoption(storaged);
+                                            flex.resources.attach.css.adoption(storaged, null, baseURL);
                                             flex.overhead.register.done(register_id, href);
                                         }
                                     } else {
@@ -747,17 +759,27 @@
                     }
                 },
                 local   : {
-                    add: function (key, value) {
-                        if (settings.storage.USE_LOCALSTORAGE === true){
-                            return flex.localStorage.add(key, value, true);
+                    add: function (url, value) {
+                        if (settings.storage.USE_LOCALSTORAGE === true) {
+                            return flex.localStorage.addJSON(url, {
+                                html    : value,
+                                hash    : flex.hashes.get(url)
+                            });
                         }
                         return false;
                     },
-                    get: function (key) {
-                        if (settings.storage.USE_LOCALSTORAGE === true){
-                            return flex.localStorage.get(key, true);
+                    get: function (url) {
+                        var target = null;
+                        if (settings.storage.USE_LOCALSTORAGE === true) {
+                            flex.hashes.update(url);
+                            target = flex.localStorage.getJSON(url);
+                            if (target !== null) {
+                                if (target.hash === flex.hashes.get(url)) {
+                                    return target.html;
+                                }
+                            }
                         }
-                        return false;
+                        return null;
                     }
                 }
             };

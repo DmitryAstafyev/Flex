@@ -13,7 +13,7 @@
                         'flex.presentation'
                     ],
                     EXTERNAL        : [
-                        { url: '/program/body.css', hash: 'TESTHASHPROPERTY' }
+                        { url: '/program/body.css' }
                     ],
                     ASYNCHRONOUS    : [
                         {
@@ -23,11 +23,11 @@
                                 { url: '/program/highcharts/highcharts-more.js',    after: ['/program/highcharts/highcharts.js'] },
                                 { url: '/program/highcharts/exporting.js',          after: ['/program/highcharts/highcharts.js'] },
                             ],
-                            storage : true,
+                            storage : false,
                             finish  : null
                         }
                     ],
-                    USE_STORAGED    : false,
+                    USE_STORAGED    : true,
                 },
                 paths   : {
                     CORE: '/kernel'
@@ -39,6 +39,9 @@
                         var presentation = flex.libraries.presentation.create();
                         presentation.start();
                     }
+                },
+                settings: {
+                    CHECK_PATHS_IN_CSS : true
                 }
             });
         },
