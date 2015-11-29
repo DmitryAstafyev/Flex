@@ -304,11 +304,6 @@
                             //Call callback
                             transport.callback(parameters.callbacks.success, data.template);
                             return false;
-                            /*
-                            setTimeout(function () {
-                                transport.callback(parameters.callbacks.success, data.template);
-                            }, 10);
-                            */
                         }, flex.system.url.restore(parameters.url));
                         return data.template;
                     }
@@ -502,7 +497,7 @@
                                             );
                                         } else {
                                             //Load css from storage
-                                            flex.resources.attach.css.adoption(storaged, null, baseURL);
+                                            flex.resources.attach.css.adoption(storaged, null, href);
                                             flex.overhead.register.done(register_id, href);
                                         }
                                     } else {

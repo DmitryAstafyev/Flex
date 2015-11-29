@@ -598,7 +598,7 @@
                 flex.libraries.css.animation();
             },
             resources       : [
-                { url: 'kernel/css/flex.ui.areascroller.css' }
+                { url: 'KERNEL::/css/flex.ui.areascroller.css' }
             ],
         });
     }

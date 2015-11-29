@@ -368,7 +368,7 @@
                 flex.libraries.css.animation();
             },
             resources       : [
-                { url: 'kernel/css/flex.ui.areaswitcher.css' }
+                { url: 'KERNEL::/css/flex.ui.areaswitcher.css' }
             ],
         });
     }

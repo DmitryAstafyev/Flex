@@ -954,7 +954,7 @@
                 flex.libraries.html         ();
             },
             resources       : [
-                { url: 'kernel/css/flex.ui.arearesizer.css' }
+                { url: 'KERNEL::css/flex.ui.arearesizer.css' }
             ],
         });
     }

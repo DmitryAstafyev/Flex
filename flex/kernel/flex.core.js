@@ -50,8 +50,26 @@
                     ASYNCHRONOUS    : { type: 'array',      value: []   }
                 },
                 paths       : {
-                    CORE            : { type: 'string',     value: '/kernel'    },
-                    ATTACH          : { type: 'string',     value: '/app'       },
+                    CORE    : {
+                        type    : 'string',
+                        value   : function () {
+                            var url = '';
+                            try{
+                                Array.prototype.forEach.call(document.getElementsByTagName('script'), function (script) {
+                                    if (script.src.toLowerCase().indexOf('flex.core.') !== -1) {
+                                        url = system.url.parse(script.src.toLowerCase());
+                                        url = url.path;
+                                        throw 'found';
+                                    }
+                                });
+                            } catch (e) {
+                                //Do nothing
+                            } finally {
+                                return url;
+                            }
+                        }
+                    },
+                    ATTACH  : { type: 'string',     value: '/app'       },
                 },
                 events      : {
                     /// <field type = 'function'>This event fires after FLEX finished loading all (module + external resources)</field>
@@ -61,8 +79,9 @@
                 },
                 settings    : {
                     /// <field type = 'boolean'>True - in all parsed CSS files will be done correction of paths (path like this "../step/step/some.some" will be corrected to "fullpath/step/step/some.some"</field>
-                    CHECK_PATHS_IN_CSS      : { type: 'boolean',    value: false    },
-                    ATTACH_PATH_SIGNATURE   : { type: 'string',     value: 'PATH::' },
+                    CHECK_PATHS_IN_CSS      : { type: 'boolean',    value: false        },
+                    ATTACH_PATH_SIGNATURE   : { type: 'string',     value: 'PATH::'     },
+                    KERNEL_PATH_SIGNATURE   : { type: 'string',     value: 'KERNEL::'   },
                 }
             },
             init    : function (settings) {
@@ -82,7 +101,7 @@
                             if (getType(setting) === section.content.type) {
                                 section.parent[section.name] = setting;
                             } else {
-                                section.parent[section.name] = section.content.value;
+                                section.parent[section.name] = typeof section.content.value === 'function' ? section.content.value() : section.content.value;
                             }
                         } else {
                             for (var property in section.content) {
@@ -192,15 +211,15 @@
                 RESOURCES_HISTORY   : 'flex.modules.resources.history',
                 ASYNCHRONOUS_HISTORY: 'asynchronous.history',
             },
-            hashes: {
+            hashes  : {
                 LOCAL_STORAGE_NAME : 'flex.hash.storage'
-            }
+            },
         };
         registry = {
             load        : function () {
                 function getURL(url) {
-                    var path = config.defaults.paths.CORE.replace(/\s*$/gi, '').replace(/^\/|\\$/gi, '');
-                    return path + (path === '' ? '' : '/') + url;
+                    var path = config.defaults.paths.CORE;
+                    return system.url.sterilize(path + (path === '' ? '' : '/') + url);
                 };
                 for (var item in options.registry) {
                     (function (url, item) {
@@ -222,7 +241,7 @@
             },
             onError     : function (item) {
                 var defaults = null;
-                if (typeof options.registry[item].defaults === 'object') {
+                if (typeof options.registry[item].defaults === 'object' && options.registry[item].defaults !== null) {
                     logs.log('Fail load [' + options.registry[item].source + ']. But this module has default settings and loading will be continue.', logs.types.WARNING);
                     options.registry[item].source   = true;
                     defaults                        = oop.namespace.create(options.registry[item].defaults.path);
@@ -1056,14 +1075,14 @@
                     hashes.update.queue.add(url);
                 },
                 queue       : {
-                    queue   : {},
-                    journal : {},
-                    isLock  : true,
-                    unlock  : function () {
+                    queue       : {},
+                    journal     : {},
+                    isLock      : true,
+                    unlock      : function () {
                         hashes.update.queue.isLock = false;
                         hashes.update.proceed();
                     },
-                    add     : function (url) {
+                    add         : function (url) {
                         if (typeof url === 'string') {
                             if (typeof hashes.update.queue.journal[url] === 'undefined') {
                                 hashes.update.queue.journal [url] = true;
@@ -1127,7 +1146,8 @@
                                 if (_hash === null) {
                                     logs.log('[HASHES]:: hash for resource [' + url + '] was generated. Next updating of page, resource will be loaded again.', logs.types.KERNEL_LOGS);
                                 } else {
-                                    logs.log('[HASHES]:: resource [' + url + '] have to be updated. It will be done after page be reloaded.', logs.types.KERNEL_LOGS);
+                                    logs.log('[HASHES]:: resource [' + url + '] have to be updated.', logs.types.KERNEL_LOGS);
+                                    hashes.resources.update(url);
                                 }
                                 //Update hash
                                 hashes.set(url, hash);
@@ -1136,13 +1156,34 @@
                         }
                     }
                 },
-                fail    : function (key, url, request) {
+                fail        : function (key, url, request) {
                     if (request.headers === null) {
                         logs.log('[HASHES]:: fail to load hash for resource [' + url + '].', logs.types.KERNEL_LOGS);
                         hashes.update.queue.del(key);
                     }
                 }
             },
+            resources   : {
+                update  : function(url){
+                    if (hashes.resources.css.update(url) === true) {
+                        return true;
+                    }
+                    logs.log('[HASHES]:: resource [' + url + '] cannot be updated in current session. It will be done after page be reloaded.', logs.types.KERNEL_LOGS);
+                },
+                css     : {
+                    update: function (url) {
+                        var style = document.querySelector('style[' + system.resources.css.settings.attr.SRC + '$="' + url + '"]');
+                        if (style !== null) {
+                            system.resources.css.connect(url, function () {
+                                style.parentNode.removeChild(style);
+                                logs.log('[HASHES]:: resource [' + url + '] have been updated in current session.', logs.types.KERNEL_LOGS);
+                            });
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+            }
         };
         modules = {
             preload     : function () {
@@ -1279,7 +1320,7 @@
                                 modules.registry.validate(libraries[property], path + '.' + property);
                             } else {
                                 oop.objects.validate(libraries[property], [
-                                    { name: 'source',   type: 'string',     value: null     },
+                                    { name: 'source',   type: 'string',     value: null, handle : modules.registry.validateSRC },
                                     { name: 'hash',     type: 'string',     value: false    },
                                     { name: 'settings', type: 'object',     value: null     },
                                     { name: 'autoHash', type: 'boolean',    value: false    },
@@ -1348,6 +1389,9 @@
                         return true;
                     }
                     return false;
+                },
+                validateSRC : function (url) {
+                    return system.url.sterilize(url.replace(config.defaults.settings.KERNEL_PATH_SIGNATURE, config.defaults.paths.CORE + '/'));
                 }
             },
             storage     : {
@@ -1550,64 +1594,63 @@
                     safely      : function (parameters) {
                         function validateSRC(src) {
                             if (typeof src === 'string') {
-                                return src. replace(config.defaults.settings.ATTACH_PATH_SIGNATURE, config.defaults.paths.ATTACH + '/').
-                                            replace(/\\/gi, '/').
-                                            replace(/\/{2,}/gi, '/');
+                                return system.url.sterilize(src. replace(config.defaults.settings.ATTACH_PATH_SIGNATURE, config.defaults.paths.ATTACH + '/'));
                             } else {
                                 return null;
                             }
                         };
-                        if (oop.objects.validate(parameters, [  { name: 'src',              type: 'string', handle : validateSRC    },
-                                                                { name: 'name',             type: 'string'                          },
+                        if (oop.objects.validate(parameters, [  { name: 'name',             type: 'string'                          },
                                                                 { name: 'constructor',      type: 'function',           value: null },
                                                                 { name: 'module',           type: 'function'                        },
                                                                 { name: 'require',          type: 'array',              value: []   },
                                                                 { name: 'onBeforeAttach',   type: 'function',           value: null },
                                                                 { name: 'onAfterAttach',    type: 'function',           value: null },
                                                                 { name: 'extend', type: ['array', 'object'], value: null }]) !== false) {
-                            if (modules.attach.unexpected.journal.isIn(parameters.src, true) === false) {
-                                if (modules.registry.add({
-                                        name        : parameters.name,
-                                        source      : parameters.src,
-                                        hash        : hashes.get(parameters.src),
-                                        autoHash    : true
-                                }) !== false) {
-                                    //Add to journal
-                                    modules.attach.unexpected.journal.add(parameters.src, true);
-                                    //Add to queue of external resources
-                                    external.queue.add('(m)' + parameters.src);
-                                    //Add hash to update
-                                    hashes.update.add(parameters.src);
-                                    //Correct paths in resources
-                                    parameters.require = parameters.require.map(function (resource) {
-                                        if (typeof resource.url === 'string') {
-                                            resource.url = validateSRC(resource.url);
-                                            if (resource !== null) {
-                                                //Remove all already loaded resources
-                                                resource = modules.attach.unexpected.journal.isIn(resource.url, false) === false ? resource : null;
+                            parameters.src = external.loader.last.get();
+                            if (parameters.src !== null) {
+                                if (modules.attach.unexpected.journal.isIn(parameters.src, true) === false) {
+                                    if (modules.registry.add({
+                                            name        : parameters.name,
+                                            source      : parameters.src,
+                                            hash        : hashes.get(parameters.src),
+                                            autoHash    : true
+                                    }) !== false) {
+                                        //Add to journal
+                                        modules.attach.unexpected.journal.add(parameters.src, true);
+                                        //Add to queue of external resources
+                                        external.queue.add('(m)' + parameters.src);
+                                        //Add hash to update
+                                        hashes.update.add(parameters.src);
+                                        //Correct paths in resources
+                                        parameters.require = parameters.require.map(function (resource) {
+                                            if (typeof resource.url === 'string') {
+                                                resource.url = validateSRC(resource.url);
+                                                if (resource !== null) {
+                                                    //Remove all already loaded resources
+                                                    resource = modules.attach.unexpected.journal.isIn(resource.url, false) === false ? resource : null;
+                                                }
+                                                return resource;
+                                            } else {
+                                                logs.log('[' + parameters.name + ']:: some resource was defined incorrectly. Field [url] was not found.', logs.types.CRITICAL);
                                             }
-                                            return resource;
-                                        } else {
-                                            logs.log('[' + parameters.name + ']:: some resource was defined incorrectly. Field [url] was not found.', logs.types.CRITICAL);
-                                        }
-                                        return null;
-                                    });
-                                    parameters.require = parameters.require.filter(function (resource) {
-                                        return resource !== null ? true : false;
-                                    });
-                                    //Processing resources
-                                    modules.attach.unexpected.require(parameters);
-                                } else {
-                                    logs.log('[' + parameters.name + ']:: attempt to attach module twice', logs.types.WARNING);
+                                            return null;
+                                        });
+                                        parameters.require = parameters.require.filter(function (resource) {
+                                            return resource !== null ? true : false;
+                                        });
+                                        //Processing resources
+                                        modules.attach.unexpected.require(parameters);
+                                    } else {
+                                        logs.log('[' + parameters.name + ']:: attempt to attach module twice', logs.types.WARNING);
+                                    }
                                 }
+                            } else {
+                                logs.log('[' + parameters.name + ']:: unexpected error with module. Cannot detect URL', logs.types.CRITICAL);
                             }
                         } else {
                             if (typeof parameters.name === 'string') {
                                 if (typeof parameters.module !== 'function') {
                                     logs.log('[' + parameters.name + ']:: to attach new module, should be defined parameter [module] as function', logs.types.CRITICAL);
-                                }
-                                if (typeof parameters.src !== 'string') {
-                                    logs.log('[' + parameters.name + ']:: to attach new module, should be defined parameter [src] as string', logs.types.CRITICAL);
                                 }
                             } else {
                                 logs.log('Fail to attach new module.', logs.types.CRITICAL);
@@ -1737,7 +1780,7 @@
                                 resources = resources.map(function (resource) {
                                     if (typeof resource.url === 'string') {
                                         return {
-                                            url     : resource.url,
+                                            url     : modules.registry.validateSRC(resource.url),
                                             hash    : settings.autoHash === true ? hashes.get(resource.url) : settings.hash,
                                             autoHash:settings.autoHash
                                         }
@@ -2080,6 +2123,7 @@
                     Embody = CSS;
                 }
                 if (Embody !== null) {
+                    external.loader.last.set(parameters.url);
                     Embody(
                         parameters.body,
                         parameters.url,
@@ -2194,6 +2238,15 @@
                 }
             },
             loader: {
+                last    : {
+                    url : null,
+                    set : function (url) {
+                        external.loader.last.url = typeof url === 'string' ? url : null;
+                    },
+                    get : function () {
+                        return external.loader.last.url;
+                    }
+                },
                 load    : function (url, hash, embody, callback) {
                     var request = ajax.create(
                         null,
@@ -2214,6 +2267,7 @@
                     logs.log('[EXTERNAL]:: resource: [' + url + '] will be reloaded.', logs.types.KERNEL_LOGS);
                 },
                 success : function (url, response, hash, embody, callback) {
+                    external.loader.last.set(url);
                     external.repository.add({
                         url : url,
                         hash: hash,
@@ -2230,6 +2284,7 @@
                     logs.log('[EXTERNAL]:: resource: [' + url + '] is reloaded.', logs.types.KERNEL_LOGS);
                 },
                 fail    : function (request, url, response, hash) {
+                    external.loader.last.set(url);
                     logs.log('[EXTERNAL]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
                 }
             },
@@ -3384,7 +3439,10 @@
                                 _left   : 'url("',
                                 _right  : '")',
                             },
-                        ]
+                        ],
+                        attr    : {
+                            SRC : 'data-flex-src'
+                        }
                     },
                     connect     : function (url, onLoad, onError) {
                         /// <signature>
@@ -3531,6 +3589,7 @@
                             try {
                                 if (url !== null) {
                                     cssText = system.resources.css.correctPaths(cssText, url);
+                                    style.setAttribute(system.resources.css.settings.attr.SRC, url);
                                 }
                                 style.type  = "text/css";
                                 if (style.styleSheet) {
@@ -3723,7 +3782,9 @@
                     parser: {
                         LAST        : /([^\/]*)$/gi,
                         CORRECTION  : /[\/\\]$/gi,
-                        BAD_SLASH   : /\\/gi
+                        BAD_SLASH   : /\\/gi,
+                        PROTOCOL    : /:\/\//gi,
+                        DOUBLE      : /\/{2,}/gi
                     }
                 },
                 getURLInfo      : function (url) {
@@ -3908,6 +3969,13 @@
                         }
                     }
                     return null;
+                },
+                sterilize       : function (url) {
+                    var protocol = IDs.id();
+                    return url. replace(system.url.settings.parser.PROTOCOL, protocol).
+                                replace(system.url.settings.parser.BAD_SLASH, '/').
+                                replace(system.url.settings.parser.DOUBLE, '/').
+                                replace(protocol, '://');
                 }
             }
         };

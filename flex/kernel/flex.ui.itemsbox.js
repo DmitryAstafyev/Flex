@@ -495,7 +495,7 @@
                 flex.libraries.html     ();
             },
             resources       : [
-                { url: 'kernel/css/flex.ui.itemsbox.css' }
+                { url: 'KERNEL::/css/flex.ui.itemsbox.css' }
             ],
         });
     }
