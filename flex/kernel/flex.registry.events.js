@@ -53,7 +53,9 @@
                     CRITICAL    : 'critical',
                     LOGICAL     : 'logical',
                     WARNING     : 'warning',
-                    NOTIFICATION: 'notification'
+                    NOTIFICATION: 'notification',
+                    LOGS        : 'log',
+                    KERNEL_LOGS : 'kernel_logs',
                 }
             }
         };

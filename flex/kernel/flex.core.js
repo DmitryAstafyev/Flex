@@ -50,7 +50,8 @@
                     ASYNCHRONOUS    : { type: 'array',      value: []   }
                 },
                 paths       : {
-                    CORE            : { type: 'string',     value: '/kernel'    }
+                    CORE            : { type: 'string',     value: '/kernel'    },
+                    ATTACH          : { type: 'string',     value: '/app'       },
                 },
                 events      : {
                     /// <field type = 'function'>This event fires after FLEX finished loading all (module + external resources)</field>
@@ -60,7 +61,8 @@
                 },
                 settings    : {
                     /// <field type = 'boolean'>True - in all parsed CSS files will be done correction of paths (path like this "../step/step/some.some" will be corrected to "fullpath/step/step/some.some"</field>
-                    CHECK_PATHS_IN_CSS: { type: 'boolean', value: false }
+                    CHECK_PATHS_IN_CSS      : { type: 'boolean',    value: false    },
+                    ATTACH_PATH_SIGNATURE   : { type: 'string',     value: 'PATH::' },
                 }
             },
             init    : function (settings) {
@@ -121,7 +123,7 @@
                         asynchronous.preload();
                     }
                 } else {
-                    logs.log('[CORE]:: flex was initialized before. Initialization can be done only once per session.', logs.types.NOTIFICATION);
+                    logs.log('[CORE]:: flex was initialized before. Initialization can be done only once per session.', logs.types.WARNING);
                 }
             },
         };
@@ -142,6 +144,7 @@
             storage : {
                 GROUP               : 'flex.core',
                 RESOURCES_JOURNAL   : 'flex.modules.resources.journal',
+                UNEXPECTED_JOURNAL  : 'flex.modules.unexpected.journal',
                 DEFAULT_CONFIG      : 'flex.defualt.config',
                 DEFAULT_CONFIG_FLAG : 'flex.defualt.config.flag',
             },
@@ -152,9 +155,36 @@
                 }
             },
             registry: {
-                EVENTS      : 'flex.registry.events.js',
-                MODULES     : 'flex.registry.modules.js',
-                SETTINGS    : 'flex.settings.js'
+                EVENTS      : {
+                    source      : 'flex.registry.events.js',
+                    defaults    : {
+                        path    : 'flex.registry.events',
+                        value   : {
+                            system: {
+                                logs: {
+                                    GROUP       : 'flex.system.logs.messages',
+                                    CRITICAL    : 'critical',
+                                    LOGICAL     : 'logical',
+                                    WARNING     : 'warning',
+                                    NOTIFICATION: 'notification',
+                                    LOGS        : 'log',
+                                    KERNEL_LOGS : 'kernel_logs',
+                                }
+                            }
+                        }
+                    }
+                },
+                MODULES     : {
+                    source      : 'flex.registry.modules.js',
+                    defaults    : {
+                        path    : 'flex.libraries',
+                        value   : {}
+                    }
+                },
+                SETTINGS     : {
+                    source      : 'flex.settings.js',
+                    defaults    : null
+                },
             },
             register: {
                 EXTERNAL_HISTROY    : 'flex.external.history',
@@ -167,15 +197,15 @@
             }
         };
         registry = {
-            load    : function () {
-                function getURL(item){
+            load        : function () {
+                function getURL(url) {
                     var path = config.defaults.paths.CORE.replace(/\s*$/gi, '').replace(/^\/|\\$/gi, '');
-                    return path + (path === '' ? '' : '/') + item;
+                    return path + (path === '' ? '' : '/') + url;
                 };
                 for (var item in options.registry) {
-                    (function (item) {
+                    (function (url, item) {
                         system.resources.js.connect(
-                            getURL(options.registry[item]),
+                            getURL(url),
                             function () {
                                 registry.onLoad(item);
                             },
@@ -183,26 +213,36 @@
                                 registry.onError(item);
                             }
                         );
-                    }(item));
+                    }(options.registry[item].source, item));
                 }
             },
-            onLoad  : function (item) {
-                function isFinish() {
-                    var result = true;
-                    for (var item in options.registry) {
-                        result = (options.registry[item] === true ? result : false);
-                    }
-                    return result;
+            onLoad      : function (item) {
+                options.registry[item].source = true;
+                registry.tryFinish();
+            },
+            onError     : function (item) {
+                var defaults = null;
+                if (typeof options.registry[item].defaults === 'object') {
+                    logs.log('Fail load [' + options.registry[item].source + ']. But this module has default settings and loading will be continue.', logs.types.WARNING);
+                    options.registry[item].source   = true;
+                    defaults                        = oop.namespace.create(options.registry[item].defaults.path);
+                    defaults                        = oop.objects.extend(options.registry[item].defaults.value, defaults.target);
+                    registry.tryFinish();
+                } else {
+                    options.registry[item].source = false;
+                    logs.log('Fail load [' + options.registry[item].source + ']. Some flex\'s libraries will not without that resource.', logs.types.WARNING);
                 }
-                options.registry[item] = true;
-                if (isFinish() !== false) {
+            },
+            tryFinish   : function () {
+                var result = true;
+                for (var item in options.registry) {
+                    result = (options.registry[item].source === true ? result : false);
+                }
+                if (result !== false) {
                     modules.registry.ready();
                     modules.preload();
                 }
-            },
-            onError : function (item) {
-                logs.log('Fail load [' + options.registry[item] + ']. Flex cannot be used without that resource.', logs.types.CRITICAL);
-            },
+            }
         };
         ajax = {
             settings    : {
@@ -1085,9 +1125,9 @@
                             });
                             if (hashes.get(url) !== hash) {
                                 if (_hash === null) {
-                                    logs.log('[HASHES]:: hash for resource [' + url + '] was generated. Next updating of page, resource will be loaded again.', logs.types.NOTIFICATION);
+                                    logs.log('[HASHES]:: hash for resource [' + url + '] was generated. Next updating of page, resource will be loaded again.', logs.types.KERNEL_LOGS);
                                 } else {
-                                    logs.log('[HASHES]:: resource [' + url + '] have to be updated. It will be done after page be reloaded.', logs.types.NOTIFICATION);
+                                    logs.log('[HASHES]:: resource [' + url + '] have to be updated. It will be done after page be reloaded.', logs.types.KERNEL_LOGS);
                                 }
                                 //Update hash
                                 hashes.set(url, hash);
@@ -1098,7 +1138,7 @@
                 },
                 fail    : function (key, url, request) {
                     if (request.headers === null) {
-                        logs.log('[HASHES]:: fail to load hash for resource [' + url + '].', logs.types.NOTIFICATION);
+                        logs.log('[HASHES]:: fail to load hash for resource [' + url + '].', logs.types.KERNEL_LOGS);
                         hashes.update.queue.del(key);
                     }
                 }
@@ -1108,17 +1148,21 @@
             preload     : function () {
                 var libraries = config.defaults.resources.MODULES;
                 if (libraries instanceof Array && modules.registry.is_ready !== false) {
-                    overhead.register.open(
-                        options.register.MODULES_HISTROY,
-                        libraries.map(function (library) { return modules.tools.clearName(library); }),
-                        external.preload
-                    );
-                    Array.prototype.forEach.call(
-                        libraries,
-                        function (library) {
-                            modules.repository.call(library);
-                        }
-                    );
+                    if (libraries.length > 0) {
+                        overhead.register.open(
+                            options.register.MODULES_HISTROY,
+                            libraries.map(function (library) { return modules.tools.clearName(library); }),
+                            external.preload
+                        );
+                        Array.prototype.forEach.call(
+                            libraries,
+                            function (library) {
+                                modules.repository.call(library);
+                            }
+                        );
+                    } else {
+                        external.preload();
+                    }
                 }
             },
             reference   : {
@@ -1245,12 +1289,27 @@
                                 } else {
                                     if (libraries[property].hash === false || libraries[property].hash === '') {
                                         libraries[property].autoHash    = true;
-                                        //libraries[property].hash        = modules.repository.getHash(modules.tools.fullName(path + '.' + property));
                                         libraries[property].hash        = hashes.get(libraries[property].source);
                                     }
                                 }
                             }
                         }
+                    }
+                },
+                makeCaller  : function (library){
+                    var property    = oop.namespace.create(library.name, flex.libraries),
+                        full_name   = null;
+                    if (property !== null) {
+                        full_name = modules.tools.fullName(library.name);
+                        Object.defineProperty(
+                            property.parent,
+                            property.name,
+                            {
+                                enumerable  : false,
+                                configurable: false,
+                                value       : function () { modules.reference.call(full_name); }
+                            }
+                        );
                     }
                 },
                 makeCallers : function (list_libraries) {
@@ -1263,20 +1322,7 @@
                     Array.prototype.forEach.call(
                         list_libraries,
                         function (library) {
-                            var property    = oop.namespace.create(library.name, flex.libraries),
-                                full_name   = null;
-                            if (property !== null) {
-                                full_name = modules.tools.fullName(library.name);
-                                Object.defineProperty(
-                                    property.parent,
-                                    property.name,
-                                    {
-                                        enumerable  : false,
-                                        configurable: false,
-                                        value       : function () { modules.reference.call(full_name); }
-                                    }
-                                );
-                            }
+                            modules.registry.makeCaller(library);
                         }
                     );
                 },
@@ -1289,6 +1335,20 @@
                     var name = name.indexOf('flex.libraries.') === 0 ? name.replace('flex.libraries.', '') : name;
                     return oop.namespace.get(name, flex.libraries_data);
                 },
+                add         : function (library) {
+                    //Add to list
+                    var property = oop.namespace.create(library.name, flex.libraries_data);
+                    if (property !== null) {
+                        property.target.name        = library.name;
+                        property.target.source      = library.source;
+                        property.target.hash        = library.hash;
+                        property.target.autoHash    = library.autoHash;
+                        //Add caller
+                        modules.registry.makeCaller(library);
+                        return true;
+                    }
+                    return false;
+                }
             },
             storage     : {
                 data    : {},
@@ -1336,7 +1396,7 @@
                 },
             },
             attach      : {
-                queue   : {
+                queue       : {
                     data    : [],
                     add     : function (parameters) {
                         /// <summary>
@@ -1364,14 +1424,14 @@
                             function (parameters, index) {
                                 if (typeof parameters.going !== 'boolean') {
                                     queue.data[index].going = true;
-                                    modules.attach.embody(parameters);
+                                    modules.attach.embody.procceed(parameters);
                                 }
                             }
                         );
                         queue.reset();
                     }
                 },
-                safely  : function (parameters) {
+                safely      : function (parameters) {
                     /// <summary>
                     /// Safely attach module. Method attaches module with queue
                     /// </summary>
@@ -1393,76 +1453,242 @@
                     //Registry of libraries is not ready. We have to wait
                     return false;
                 },
-                embody  : function (parameters) {
-                    /// <summary>
-                    /// Attach module. Method attaches module directly without queue
-                    /// </summary>
-                    /// <param name="parameters" type="Object">Object of module:    &#13;&#10;
-                    /// {   [string]    name,                                       &#13;&#10;
-                    ///     [function]  protofunction,                              &#13;&#10;
-                    ///     [function]  reference       (optional),                 &#13;&#10;
-                    ///     [array]     resources       (optional),                 &#13;&#10;
-                    ///     [function]  onBeforeAttach  (optional),                 &#13;&#10;
-                    ///     [function]  onAfterAttach   (optional),                 &#13;&#10;
-                    ///     [array]     extend          (optional)}</param>
-                    /// <returns type="boolean">true if success and false if fail</returns>
-                    function validateParameters(parameters) {
-                        parameters.name             = parameters.name           || null;
-                        parameters.protofunction    = parameters.protofunction  || null;
-                        parameters.reference        = parameters.reference      || null;
-                        parameters.resources        = parameters.resources      || [];
-                        parameters.onBeforeAttach   = parameters.onBeforeAttach || null;
-                        parameters.onAfterAttach    = parameters.onAfterAttach  || null;
-                        parameters.extend           = parameters.extend         || [];
-                        return parameters;
-                    };
-                    function makeConstructor(constructor_storage, name) {
-                        constructor_storage.create = function () {
-                            var library = modules.storage.get(name);
-                            //Check prototype
-                            if (typeof library.protofunction.prototype === 'function') {
-                                //Initialize prototype if it's necessary
-                                library.protofunction.prototype = (library.protofunction.prototype)();
+                embody      : {
+                    createConstructor   : function (name, protofunction) {
+                        var library         = modules.storage.get(name),
+                            protofunction   = typeof protofunction === 'function' ? protofunction : null;
+                        if (protofunction !== null || library !== null) {
+                            protofunction = protofunction !== null ? protofunction : library.protofunction;
+                            //First time prototype of function should be a function
+                            if (typeof protofunction.prototype === 'function') {
+                                return function () {
+                                    //Initialize prototype if it's necessary
+                                    if (typeof protofunction.prototype === 'function') {
+                                        protofunction.prototype = protofunction.prototype();
+                                    }
+                                    return new protofunction();
+                                };
+                            } else {
+                                logs.log('[MODULES]:: cannot create caller for module [' + name + ']. Prototype of module should be a function.', logs.types.CRITICAL);
+                                return null;
                             }
-                            return new (library.protofunction)();
-                        };
-                    };
-                    var parameters          = validateParameters((parameters || {})),
-                        constructor_storage = null;
-                    if (parameters.protofunction !== null && parameters.name !== null) {
-                        //Correct namespace
-                        parameters.name = modules.tools.fullName(parameters.name);
-                        //Get link to storage of library. Also it checks is library in registry or not
-                        constructor_storage = oop.namespace.get(parameters.name);
-                        if (constructor_storage !== null && constructor_storage !== false) {
-                            //Check is library attached or not
-                            if (typeof constructor_storage.create === 'undefined') {
-                                //Save library data in storage
-                                if (modules.storage.add(parameters) !== false) {
-                                    //Add to repository
-                                    modules.repository.add(parameters);
-                                    //Make constructor
-                                    makeConstructor(constructor_storage, parameters.name);
-                                    //Check references of this library
-                                    modules.reference.check(parameters.name);
-                                    //Check resources of module and continue after resources will be loaded
-                                    modules.resources.check(
-                                        parameters.name,
-                                        parameters.resources,
-                                        function () {
-                                            //Restart references of pending libraries
-                                            modules.reference.pending();
-                                            //Mark as done
-                                            overhead.register.done(options.register.MODULES_HISTROY, parameters.name);
+                        }
+                        logs.log('[MODULES]:: cannot create caller for module [' + name + ']. Incorrect prototype function.', logs.types.CRITICAL);
+                        return null;
+                    },
+                    procceed            : function (parameters) {
+                        /// <summary>
+                        /// Attach module. Method attaches module directly without queue
+                        /// </summary>
+                        /// <param name="parameters" type="Object">Object of module:    &#13;&#10;
+                        /// {   [string]    name,                                       &#13;&#10;
+                        ///     [function]  protofunction,                              &#13;&#10;
+                        ///     [function]  reference           (optional),             &#13;&#10;
+                        ///     [array]     resources           (optional),             &#13;&#10;
+                        ///     [function]  onBeforeAttach      (optional),             &#13;&#10;
+                        ///     [function]  onAfterAttach       (optional),             &#13;&#10;
+                        ///     [array]     extend              (optional)}</param>
+                        /// <returns type="boolean">true if success and false if fail</returns>
+                        var constructor_storage = null;
+                        if (oop.objects.validate(parameters, [  { name: 'name',             type: 'string'                          },
+                                                                { name: 'protofunction',    type: 'function'                        },
+                                                                { name: 'reference',        type: 'function',           value: null },
+                                                                { name: 'resources',        type: 'array',              value: []   },
+                                                                { name: 'onBeforeAttach',   type: 'function',           value: null },
+                                                                { name: 'onAfterAttach',    type: 'function',           value: null },
+                                                                { name: 'extend',           type: ['array', 'object'],  value: [] } ]) !== false) {
+                            //Correct namespace
+                            parameters.name = modules.tools.fullName(parameters.name);
+                            //Get link to storage of library. Also it checks is library in registry or not
+                            constructor_storage = oop.namespace.get(parameters.name);
+                            if (constructor_storage !== null && constructor_storage !== false) {
+                                //Check is library attached or not
+                                if (typeof constructor_storage.create === 'undefined') {
+                                    //Save library data in storage
+                                    if (modules.storage.add(parameters) !== false) {
+                                        //Make constructor
+                                        constructor_storage.create = modules.attach.embody.createConstructor(parameters.name);
+                                        if (constructor_storage.create !== null) {
+                                            //Add to repository
+                                            modules.repository.add(parameters);
+                                            //Check references of this library
+                                            modules.reference.check(parameters.name);
+                                            //Check resources of module and continue after resources will be loaded
+                                            modules.resources.check(
+                                                parameters.name,
+                                                parameters.resources,
+                                                function () {
+                                                    //Restart references of pending libraries
+                                                    modules.reference.pending();
+                                                    //Mark as done
+                                                    overhead.register.done(options.register.MODULES_HISTROY, parameters.name);
+                                                }
+                                            );
+                                            logs.log('[MODULES]:: [' + parameters.name + '] was initialized.', logs.types.KERNEL_LOGS);
+                                            return true;
                                         }
-                                    );
+                                    }
+                                }
+                            }
+                        }
+                        return false;
+                    },
+                },
+                unexpected: {
+                    journal: {
+                        add : function (url, as_module) {
+                            var journal = overhead.globaly.get(options.storage.GROUP, (as_module === true ? '(m)' : '(r)') + options.storage.UNEXPECTED_JOURNAL, {});
+                            if (!journal[url]) {
+                                journal[url] = true;
+                            }
+                        },
+                        isIn: function (url, as_module) {
+                            var journal = overhead.globaly.get(options.storage.GROUP, (as_module === true ? '(m)' : '(r)') + options.storage.UNEXPECTED_JOURNAL, {});
+                            return typeof journal[url] === 'undefined' ? false : true;
+                        }
+                    },
+                    safely      : function (parameters) {
+                        function validateSRC(src) {
+                            if (typeof src === 'string') {
+                                return src. replace(config.defaults.settings.ATTACH_PATH_SIGNATURE, config.defaults.paths.ATTACH + '/').
+                                            replace(/\\/gi, '/').
+                                            replace(/\/{2,}/gi, '/');
+                            } else {
+                                return null;
+                            }
+                        };
+                        if (oop.objects.validate(parameters, [  { name: 'src',              type: 'string', handle : validateSRC    },
+                                                                { name: 'name',             type: 'string'                          },
+                                                                { name: 'constructor',      type: 'function',           value: null },
+                                                                { name: 'module',           type: 'function'                        },
+                                                                { name: 'require',          type: 'array',              value: []   },
+                                                                { name: 'onBeforeAttach',   type: 'function',           value: null },
+                                                                { name: 'onAfterAttach',    type: 'function',           value: null },
+                                                                { name: 'extend', type: ['array', 'object'], value: null }]) !== false) {
+                            if (modules.attach.unexpected.journal.isIn(parameters.src, true) === false) {
+                                if (modules.registry.add({
+                                        name        : parameters.name,
+                                        source      : parameters.src,
+                                        hash        : hashes.get(parameters.src),
+                                        autoHash    : true
+                                }) !== false) {
+                                    //Add to journal
+                                    modules.attach.unexpected.journal.add(parameters.src, true);
+                                    //Add to queue of external resources
+                                    external.queue.add('(m)' + parameters.src);
+                                    //Add hash to update
+                                    hashes.update.add(parameters.src);
+                                    //Correct paths in resources
+                                    parameters.require = parameters.require.map(function (resource) {
+                                        if (typeof resource.url === 'string') {
+                                            resource.url = validateSRC(resource.url);
+                                            if (resource !== null) {
+                                                //Remove all already loaded resources
+                                                resource = modules.attach.unexpected.journal.isIn(resource.url, false) === false ? resource : null;
+                                            }
+                                            return resource;
+                                        } else {
+                                            logs.log('[' + parameters.name + ']:: some resource was defined incorrectly. Field [url] was not found.', logs.types.CRITICAL);
+                                        }
+                                        return null;
+                                    });
+                                    parameters.require = parameters.require.filter(function (resource) {
+                                        return resource !== null ? true : false;
+                                    });
+                                    //Processing resources
+                                    modules.attach.unexpected.require(parameters);
+                                } else {
+                                    logs.log('[' + parameters.name + ']:: attempt to attach module twice', logs.types.WARNING);
+                                }
+                            }
+                        } else {
+                            if (typeof parameters.name === 'string') {
+                                if (typeof parameters.module !== 'function') {
+                                    logs.log('[' + parameters.name + ']:: to attach new module, should be defined parameter [module] as function', logs.types.CRITICAL);
+                                }
+                                if (typeof parameters.src !== 'string') {
+                                    logs.log('[' + parameters.name + ']:: to attach new module, should be defined parameter [src] as string', logs.types.CRITICAL);
+                                }
+                            } else {
+                                logs.log('Fail to attach new module.', logs.types.CRITICAL);
+                            }
+                        }
+                    },
+                    embody      : function (parameters) {
+                        /// <summary>
+                        /// Attach module. Method attaches module directly without queue
+                        /// </summary>
+                        /// <param name="parameters" type="Object">Object of module:    &#13;&#10;
+                        /// {   [string]    name,                                       &#13;&#10;
+                        ///     [string]    src,                                        &#13;&#10;
+                        ///     [function]  constructor,                                &#13;&#10;
+                        ///     [function]  module,                                     &#13;&#10;
+                        ///     [function]  onBeforeAttach      (optional),             &#13;&#10;
+                        ///     [function]  onAfterAttach       (optional),             &#13;&#10;
+                        ///     [array]     extend              (optional)}</param>
+                        /// <returns type="boolean">true if success and false if fail</returns>
+                        var constructor_storage = null;
+                        if (oop.objects.validate(parameters, [  { name: 'name',             type: 'string'                          },
+                                                                { name: 'src',              type: 'string'                          },
+                                                                { name: 'constructor',      type: 'function'                        },
+                                                                { name: 'module',           type: 'function'                        },
+                                                                { name: 'onBeforeAttach',   type: 'function',           value: null },
+                                                                { name: 'onAfterAttach',    type: 'function',           value: null },
+                                                                { name: 'extend',           type: ['array', 'object'],  value: [] } ]) !== false) {
+                            //Correct namespace
+                            parameters.name = modules.tools.fullName(parameters.name);
+                            //Get link to storage of library. Also it checks is library in registry or not
+                            constructor_storage = oop.namespace.get(parameters.name);
+                            if (constructor_storage !== null && constructor_storage !== false) {
+                                //Check is library attached or not
+                                if (typeof constructor_storage.create === 'undefined') {
+                                    //Add protofunction
+                                    parameters.protofunction            = parameters.constructor;
+                                    parameters.protofunction.prototype  = parameters.module;
+                                    //Make constructor
+                                    constructor_storage.create = modules.attach.embody.createConstructor(parameters.name, parameters.protofunction);
+                                    //Add to queue of external resources
+                                    external.queue.done('(m)' + parameters.src);
                                     return true;
                                 }
                             }
                         }
+                        return false;
+                    },
+                    require     : function (parameters) {
+                        var id = IDs.id(parameters.src);
+                        if (parameters.require.length > 0) {
+                            overhead.register.open(
+                                id,
+                                parameters.require.map(function (resource) { return resource.url; }),
+                                function () {
+                                    modules.attach.unexpected.embody(parameters);
+                                    parameters.require.forEach(function (resource) {
+                                        external.queue.done('(r)' + resource.url);
+                                    });
+                                }
+                            );
+                            //Add to journal
+                            parameters.require.forEach(function (resource) {
+                                //Add to journal
+                                modules.attach.unexpected.journal.add(resource.url, false);
+                            });
+                            //Load resources
+                            parameters.require.forEach(function (resource) {
+                                //Add to queue of external resources
+                                external.queue.add('(r)' + resource.url);
+                                //Call resource
+                                external.repository.call(resource.url, hashes.get(resource.url), function () {
+                                    overhead.register.done(id, resource.url);
+                                });
+                                //Add update of hash
+                                hashes.update.add(resource.url);
+                            });
+                        } else {
+                            modules.attach.unexpected.embody(parameters);
+                        }
                     }
-                    return false;
-                }
+                },
             },
             resources: {
                 loader: {
@@ -1554,8 +1780,9 @@
                             wrapper = new Function(resource.value);
                             try {
                                 wrapper.call(window);
+                                logs.log('[MODULES]:: resource: [' + resource.url + '] was adopted.', logs.types.KERNEL_LOGS);
                             } catch (e) {
-                                logs.log('[MODULES]:: during initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
+                                logs.log('[MODULES]:: during initialization of resource: [' + resource.url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
                             }
                         }
                         overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
@@ -1567,7 +1794,7 @@
                                 resource.url,
                                 function () {
                                     overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
-                                    logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) is reloaded.', logs.types.NOTIFICATION);
+                                    logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) is reloaded.', logs.types.KERNEL_LOGS);
                                 },
                                 null
                             );
@@ -1577,7 +1804,7 @@
                                 resource.url,
                                 function () {
                                     overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
-                                    logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) is reloaded.', logs.types.NOTIFICATION);
+                                    logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) is reloaded.', logs.types.KERNEL_LOGS);
                                 },
                                 null
                             );
@@ -1593,7 +1820,7 @@
                             restore(name, storaged);
                         } else {
                             reload(name, resource);
-                            logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) will be reloaded.', logs.types.NOTIFICATION);
+                            logs.log('[MODULES]:: resource of module [' + name + '] (file: [' + resource.url + ']) will be reloaded.', logs.types.KERNEL_LOGS);
                         }
                     } else {
                         reload(name, resource);
@@ -1609,18 +1836,19 @@
                     /// <summary>
                     /// Add resource into repository
                     /// </summary>
-                    /// <param name="parameters" type="Object">Object of data. Same as in [attach.embody]</param>
+                    /// <param name="parameters" type="Object">Object of data. Same as in [attach.embody.procceed]</param>
                     /// <returns type="boolean">true if success and false if not</returns>
                     var settings    = modules.registry.getSettings(parameters.name),
                         data        = {
-                            name            : parameters.name,
-                            constr          : parameters.protofunction,
-                            protofunction   : parameters.protofunction.prototype,
-                            reference       : parameters.reference,
-                            resources       : parameters.resources,
-                            onBeforeAttach  : parameters.onBeforeAttach,
-                            onAfterAttach   : parameters.onAfterAttach,
-                            extend          : parameters.extend,
+                            name            : parameters.name                       || null,
+                            constr          : parameters.protofunction              || null,
+                            protofunction   : parameters.protofunction.prototype    || null,
+                            reference       : parameters.reference                  || null,
+                            resources       : parameters.resources                  || null,
+                            onBeforeAttach  : parameters.onBeforeAttach             || null,
+                            onAfterAttach   : parameters.onAfterAttach              || null,
+                            extend          : parameters.extend                     || null,
+                            unexpected      : parameters.unexpected                 || null,
                         },
                         hash        = modules.repository.getHash(parameters.name);
                     if (hash !== settings.hash && config.defaults.resources.USE_STORAGED !== false) {
@@ -1631,7 +1859,7 @@
                         data.onAfterAttach  = (typeof data.reference        === 'function' ? parsing.js.stringify(data.onAfterAttach    ) : null);
                         if (data.constr !== null && data.protofunction !== null) {
                             //Log message
-                            logs.log('[MODULES]:: module [' + parameters.name + '] was updated.', logs.types.NOTIFICATION);
+                            logs.log('[MODULES]:: module [' + parameters.name + '] was updated.', logs.types.KERNEL_LOGS);
                             //Save hash
                             if (settings.autoHash === true) {
                                 settings.hash = hashes.get(settings.source);
@@ -1688,7 +1916,7 @@
                                 return storaged.data;
                             } else {
                                 //Log message
-                                logs.log('[MODULES]:: module [' + name + '] will be updated.', logs.types.NOTIFICATION);
+                                logs.log('[MODULES]:: module [' + name + '] will be updated.', logs.types.KERNEL_LOGS);
                                 localStorage.del(name);
                                 return null;
                             }
@@ -1739,7 +1967,7 @@
                                     return true;
                                 }
                                 if (settings.source.toLocaleString().indexOf('.css') === settings.source.length - '.css'.length) {
-                                    system.resources.css.connect(settings.source, null, null, false);
+                                    system.resources.css.connect(settings.source, null, null);
                                     return true;
                                 }
                             }
@@ -1747,7 +1975,7 @@
                     }
                     logs.log('[MODULES]:: module [' + name + '] cannot be called. Check definitions in registry [flex.registry.modules.js].', logs.types.CRITICAL);
                     return false;
-                }
+                },
             },
             tools       : {
                 fullName    : function (library) {
@@ -1761,15 +1989,32 @@
             }
         };
         external = {
+            queue: {
+                create  : function (resources) {
+                    overhead.register.open(
+                        options.register.EXTERNAL_HISTROY,
+                        resources.map(function (resource) { return resource.url; }),
+                        coreEvents.onFlexLoad
+                    );
+                },
+                add     : function (url) {
+                    if (typeof url === 'string') {
+                        return overhead.register.add(options.register.EXTERNAL_HISTROY, url);
+                    }
+                    return false;
+                },
+                done    : function (url) {
+                    if (typeof url === 'string') {
+                        return overhead.register.done(options.register.EXTERNAL_HISTROY, url);
+                    }
+                    return false;
+                }
+            },
             preload     : function () {
                 var resources = config.defaults.resources.EXTERNAL;
                 if (resources instanceof Array) {
                     if (resources.length > 0) {
-                        overhead.register.open(
-                            options.register.EXTERNAL_HISTROY,
-                            resources.map(function (resource) { return resource.url; }),
-                            coreEvents.onFlexLoad
-                        );
+                        external.queue.create(resources);
                         Array.prototype.forEach.call(
                             resources,
                             function (resource) {
@@ -1824,6 +2069,7 @@
                 /// {   [string]    url,                                        &#13;&#10;
                 ///     [string]    body,                                       &#13;&#10;
                 ///     [string]    hash                                        &#13;&#10;
+                ///     [function]  [option] callback                           &#13;&#10;
                 /// }</param>
                 /// <returns type="boolean">true if success and false if not</returns>
                 var regs    = options.regs.resources,
@@ -1838,15 +2084,19 @@
                         parameters.body,
                         parameters.url,
                         function () {
-                            overhead.register.done(options.register.EXTERNAL_HISTROY, parameters.url);
+                            if (parameters.callback !== null) {
+                                system.handle(parameters.callback, parameters.url, '[flex]external.embody');
+                            } else {
+                                external.queue.done(parameters.url);
+                            }
                         },
                         function () {
                             logs.log('Resource [' + parameters.url + '] was not load. But FLEX continues loading.', logs.types.CRITICAL);
-                            overhead.register.done(options.register.EXTERNAL_HISTROY, parameters.url);
+                            if (parameters.callback === null) {
+                                external.queue.done(parameters.url);
+                            }
                         }
                     );
-                    if (Embody(parameters.body, parameters.url) !== false) {
-                    }
                 }
             },
             repository  : {
@@ -1918,31 +2168,33 @@
                     }
                     return null;
                 },
-                call    : function (url, hash) {
+                call    : function (url, hash, callback) {
                     /// <summary>
                     /// Try find resource in repository and load it if necessary 
                     /// </summary>
                     /// <param name="url"   type="string">URL of resource</param>
                     /// <param name="hash"  type="string">Control hash for resource</param>
                     /// <returns type="void">void</returns>
-                    var repository = external.repository.get(url, hash);
+                    var repository  = external.repository.get(url, hash),
+                        callback    = typeof callback === 'function' ? callback : null;
                     if (repository !== null) {
                         if (repository.hash === hash) {
                             external.embody({
-                                url : url,
-                                hash: hash,
-                                body: repository.body
+                                url     : url,
+                                hash    : hash,
+                                body    : repository.body,
+                                callback: callback
                             });
                         } else {
-                            external.loader.load(url, hash, true);
+                            external.loader.load(url, hash, true, callback);
                         }
                     } else {
-                        external.loader.load(url, hash, true);
+                        external.loader.load(url, hash, true, callback);
                     }
                 }
             },
             loader: {
-                load    : function (url, hash, embody) {
+                load    : function (url, hash, embody, callback) {
                     var request = ajax.create(
                         null,
                         url,
@@ -1950,7 +2202,7 @@
                         null,
                         {
                             success : function (response, request) {
-                                external.loader.success(url, response, hash, embody);
+                                external.loader.success(url, response, hash, embody, callback);
                             },
                             fail    : function (response, request) {
                                 external.loader.fail(request, url, response, hash);
@@ -1959,9 +2211,9 @@
                         null
                     );
                     request.send();
-                    logs.log('[EXTERNAL]:: resource: [' + url + '] will be reloaded.', logs.types.NOTIFICATION);
+                    logs.log('[EXTERNAL]:: resource: [' + url + '] will be reloaded.', logs.types.KERNEL_LOGS);
                 },
-                success : function (url, response, hash, embody) {
+                success : function (url, response, hash, embody, callback) {
                     external.repository.add({
                         url : url,
                         hash: hash,
@@ -1969,12 +2221,13 @@
                     });
                     if (embody === true) {
                         external.embody({
-                            url : url,
-                            hash: hash,
-                            body: response.original
+                            url     : url,
+                            hash    : hash,
+                            body    : response.original,
+                            callback: callback
                         });
                     }
-                    logs.log('[EXTERNAL]:: resource: [' + url + '] is reloaded.', logs.types.NOTIFICATION);
+                    logs.log('[EXTERNAL]:: resource: [' + url + '] is reloaded.', logs.types.KERNEL_LOGS);
                 },
                 fail    : function (request, url, response, hash) {
                     logs.log('[EXTERNAL]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
@@ -2120,7 +2373,7 @@
                         try {
                             storaged = JSON.parse(storaged);
                             if (storaged.hash !== hash) {
-                                logs.log('[ASYNCHRONOUS]:: resource [' + url + '] will be updated.', logs.types.NOTIFICATION);
+                                logs.log('[ASYNCHRONOUS]:: resource [' + url + '] will be updated.', logs.types.KERNEL_LOGS);
                                 localStorage.del(url);
                                 return null;
                             } else {
@@ -2636,7 +2889,7 @@
                         isIn    : function (key) {
                             return (this.items[key] ? true : false);
                         },
-                        isDone: function (key) {
+                        isDone  : function (key) {
                             if (this.items[key]) {
                                 return this.items[key].isDone;
                             }
@@ -2667,6 +2920,7 @@
                             });
                             //Save register
                             storage[name] = register;
+                            return true;
                         }
                     }
                     return false;
@@ -3671,7 +3925,17 @@
                 CRITICAL        : 'CRITICAL',
                 LOGICAL         : 'LOGICAL',
                 WARNING         : 'WARNING',
-                NOTIFICATION    : 'NOTIFICATION'
+                NOTIFICATION    : 'NOTIFICATION',
+                LOGS            : 'LOG',
+                KERNEL_LOGS     : 'KERNEL_LOGS',
+            },
+            rendering   : {
+                CRITICAL        : 'color: #FF0000;font-weight:bold;',
+                LOGICAL         : 'color: #00FFF7;font-weight:bold;',
+                WARNING         : 'color: #E6FF00;font-weight:bold;',
+                NOTIFICATION    : 'color: #988DFF;font-weight:bold;',
+                LOGS            : 'color: #6C6C6C;',
+                KERNEL_LOGS     : 'color: #008B0E;font-weight:bold;',
             },
             parseError  : function (e) {
                 /// <signature>
@@ -3699,10 +3963,10 @@
                 ///     <param name="type"      type="string">Type of message</param>
                 ///     <returns type="void">void</returns>
                 /// </signature>
-                var type = type || '';
-                if (console) {
+                var type = type || 'LOGS';
+                if (console && logs.types[type]) {
                     if (typeof console.log !== 'undefined') {
-                        console.log(message);
+                        console.log('%c [' + type + ']' + '%c' + message, logs.rendering[type], logs.rendering.LOGS);
                         logs.callEvent(message, type);
                     }
                 }
@@ -3930,7 +4194,8 @@
                 }
             },
             modules : {
-                attach : modules.attach.safely
+                attach : modules.attach.safely,
+                append : modules.attach.unexpected.safely
             },
             unique  : IDs.id,
             events  : {
@@ -4052,7 +4317,8 @@
                 }
             },
             modules : {
-                attach : privates.modules.attach
+                attach: privates.modules.attach,
+                append: privates.modules.append
             },
             unique  : privates.unique,
             events  : {
@@ -4142,7 +4408,8 @@
                     string  : privates.callers.define.string,
                     boolean : privates.callers.define.boolean,
                 }
-            }
+            },
+            _storage: overhead.globaly.storage
         };
     }());
     //Core of flex is in global space
@@ -4154,6 +4421,8 @@
     window['_object'    ] = flex.callers.object;
     window['_string'    ] = flex.callers.string;
     window['_boolean'   ] = flex.callers.boolean;
+    //Other shorts
+    window['_append'    ] = flex.modules.append;
 }());
 /*TODO:
 * fix problem with IE9 -> limit for CSS - 4095 selectors per one stylesheet

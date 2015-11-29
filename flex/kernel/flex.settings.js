@@ -13,7 +13,8 @@
                         'flex.presentation'
                     ],
                     EXTERNAL        : [
-                        { url: '/program/body.css' }
+                        { url: '/program/body.css'  },
+                        { url: '/app/short.js'      },
                     ],
                     ASYNCHRONOUS    : [
                         {
@@ -30,7 +31,8 @@
                     USE_STORAGED    : true,
                 },
                 paths   : {
-                    CORE: '/kernel'
+                    CORE    : '/kernel',
+                    ATTACH  : '/app'
                 },
                 events  : {
                     onFlexLoad: function () {
@@ -38,6 +40,8 @@
                     onPageLoad: function () {
                         var presentation = flex.libraries.presentation.create();
                         presentation.start();
+                        var short = flex.libraries.short.create();
+                        short.getName();
                     }
                 },
                 settings: {
