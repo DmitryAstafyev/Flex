@@ -20,7 +20,7 @@
     Flex.prototype = (function () {
         var information     = {
                 name    : "Flex::: web tools",
-                version : "0.10",
+                version : "0.42",
                 author  : "Dmitry Astafyev",
             },
             config          = {},
@@ -32,6 +32,7 @@
             oop             = {},
             privates        = {},
             hashes          = {},
+            cache           = {},
             modules         = {},
             external        = {},
             asynchronous    = {},
@@ -53,20 +54,13 @@
                     CORE    : {
                         type    : 'string',
                         value   : function () {
-                            var url = '';
-                            try{
-                                Array.prototype.forEach.call(document.getElementsByTagName('script'), function (script) {
-                                    if (script.src.toLowerCase().indexOf('flex.core.') !== -1) {
-                                        url = system.url.parse(script.src.toLowerCase());
-                                        url = url.path;
-                                        throw 'found';
-                                    }
-                                });
-                            } catch (e) {
-                                //Do nothing
-                            } finally {
-                                return url;
+                            var url     = '',
+                                script  = document.querySelector('script[src*="' + options.files.CORE + '"]');
+                            if (script !== null) {
+                                url = system.url.parse(script.src.toLowerCase());
+                                url = url.path;
                             }
+                            return url;
                         }
                     },
                     ATTACH  : { type: 'string',     value: '/app'       },
@@ -82,6 +76,23 @@
                     CHECK_PATHS_IN_CSS      : { type: 'boolean',    value: false        },
                     ATTACH_PATH_SIGNATURE   : { type: 'string',     value: 'PATH::'     },
                     KERNEL_PATH_SIGNATURE   : { type: 'string',     value: 'KERNEL::'   },
+                },
+                cache       : {
+                    reset   : {
+                        /// <field type = 'boolean'>Reset whole cache if some new resource detected</field>
+                        ON_NEW_MODULE       : { type: 'boolean', value: true },
+                        /// <field type = 'boolean'>Reset whole cache if some resource is updated</field>
+                        ON_UPDATED_MODULE   : { type: 'boolean', value: false },
+                        /// <field type = 'boolean'>Reset whole cache if some new resource detected</field>
+                        ON_NEW_RESOURCE     : { type: 'boolean', value: false },
+                        /// <field type = 'boolean'>Reset whole cache if some resource is updated</field>
+                        ON_UPDATED_RESOURCE : { type: 'boolean', value: false },
+                        /// <field type = 'boolean'>Reset whole cache if some critical error was</field>
+                        ON_CRITICAL_ERROR   : { type: 'boolean', value: true },
+                    }
+                },
+                logs    : {
+                    SHOW: { type: 'array', value: ['CRITICAL', 'LOGICAL', 'WARNING'] }
                 }
             },
             init    : function (settings) {
@@ -137,10 +148,6 @@
                         },
                         settings || {}
                     );
-                    if (inited === true) {
-                        modules.preload();
-                        asynchronous.preload();
-                    }
                 } else {
                     logs.log('[CORE]:: flex was initialized before. Initialization can be done only once per session.', logs.types.WARNING);
                 }
@@ -180,7 +187,7 @@
                         path    : 'flex.registry.events',
                         value   : {
                             system: {
-                                logs: {
+                                logs    : {
                                     GROUP       : 'flex.system.logs.messages',
                                     CRITICAL    : 'critical',
                                     LOGICAL     : 'logical',
@@ -188,17 +195,22 @@
                                     NOTIFICATION: 'notification',
                                     LOGS        : 'log',
                                     KERNEL_LOGS : 'kernel_logs',
+                                },
+                                cache   : {
+                                    GROUP               : 'flex.system.cache.events',
+                                    ON_NEW_RESOURCE     : 'ON_NEW_RESOURCE',
+                                    ON_UPDATED_RESOURCE : 'ON_UPDATED_RESOURCE',
                                 }
                             }
                         }
                     }
                 },
                 MODULES     : {
-                    source      : 'flex.registry.modules.js',
-                    defaults    : {
+                    source          : 'flex.registry.modules.js',
+                    defaults        : {
                         path    : 'flex.libraries',
                         value   : {}
-                    }
+                    },
                 },
                 SETTINGS     : {
                     source      : 'flex.settings.js',
@@ -214,6 +226,16 @@
             hashes  : {
                 LOCAL_STORAGE_NAME : 'flex.hash.storage'
             },
+            cache   : {
+                STORAGE             : 'flex.cache.storage.reset_data',
+                URL_PARAM_VERSION   : 'flexhash'
+            },
+            files   : {
+                CORE : 'flex.core.js'
+            },
+            other   : {
+                STORAGE_PREFIX  : '[FLEX_SYSTEM_RESURCES]'
+            }
         };
         registry = {
             load        : function () {
@@ -258,8 +280,10 @@
                     result = (options.registry[item].source === true ? result : false);
                 }
                 if (result !== false) {
-                    modules.registry.ready();
-                    modules.preload();
+                    cache.              init();
+                    modules.registry.   ready();
+                    modules.            preload();
+                    asynchronous.       preload();
                 }
             }
         };
@@ -805,31 +829,34 @@
                     ///     <param name="target" type="object">Object - target</param>
                     ///     <returns type="object">object</returns>
                     /// </signature>
+                    function copyProperty(property) {
+                        var result = null;
+                        if (property instanceof Array) {
+                            result = [];
+                            Array.prototype.forEach.call(
+                                property,
+                                function (item) {
+                                    if (item instanceof Array === false && typeof item !== 'object' && typeof item !== 'function') {
+                                        result.push(item);
+                                    } else {
+                                        result.push(copyProperty(item));
+                                    }
+                                }
+                            );
+                        } else if (typeof property === 'object' && property !== null && typeof property !== 'function') {
+                            result = copy(property);
+                        } else {
+                            result = property;
+                        }
+                        return result;
+                    };
                     var target  = target || {},
                         source  = (typeof source === "object" ? source : null),
                         copy    = oop.objects.copy;
                     if (source !== null) {
                         for (var key in source) {
                             if (source.hasOwnProperty(key)) {
-                                if (source[key] instanceof Array) {
-                                    target[key] = [];
-                                    Array.prototype.forEach.call(
-                                        source[key],
-                                        function (item) {
-                                            if (item instanceof Array === false && typeof item !== 'object' && typeof item !== 'function') {
-                                                target[key].push(item);
-                                            } else {
-                                                target[key].push(copy(item));
-                                            }
-                                        }
-                                    );
-                                } else if (typeof source[key] === 'object' && source[key] !== null && typeof source[key] !== 'function') {
-                                    target[key] = {};
-                                    target[key] = copy(source[key]);
-                                } else {
-                                    target[key] = source[key];
-                                }
-
+                                target[key] = copyProperty(source[key]);
                             }
                         }
                         return target;
@@ -1026,11 +1053,129 @@
                 }
             }
         };
+        cache = {
+            init    : function(){
+                if (system.localStorage.isAvailable() !== false) {
+                    cache.storage.load();
+                    cache.actions.hash();
+                    if (config.defaults.resources.USE_STORAGED === true) {
+                        //Looking for events only if cache is using
+                        cache.attach();
+                    }
+                }
+            },
+            attach  : function () {
+                ['ON_NEW_MODULE', 'ON_UPDATED_MODULE', 'ON_NEW_RESOURCE', 'ON_UPDATED_RESOURCE'].forEach(function (event) {
+                    events.core.listen(
+                        flex.registry.events.system.cache.GROUP,
+                        flex.registry.events.system.cache[event],
+                        function (param) {
+                            cache.events.on(config.defaults.cache.reset[event], param);
+                        }
+                    );
+                });
+                events.core.listen(
+                    flex.registry.events.system.logs.GROUP,
+                    flex.registry.events.system.logs.CRITICAL,
+                    function (param) {
+                        cache.events.on(config.defaults.cache.reset.ON_CRITICAL_ERROR, param);
+                    }
+                );
+            },
+            events  : {
+                on  : function (reset, url) {
+                    if (reset === true) {
+                        cache.actions.reset(url);
+                    }
+                },
+                fire: {
+                    ON_NEW_MODULE       : function (url) {
+                        events.core.fire(flex.registry.events.system.cache.GROUP, flex.registry.events.system.cache.ON_NEW_MODULE, url);
+                    },
+                    ON_UPDATED_MODULE   : function (url) {
+                        events.core.fire(flex.registry.events.system.cache.GROUP, flex.registry.events.system.cache.ON_UPDATED_MODULE, url);
+                    },
+                    ON_NEW_RESOURCE     : function (url) {
+                        events.core.fire(flex.registry.events.system.cache.GROUP, flex.registry.events.system.cache.ON_NEW_RESOURCE, url);
+                    },
+                    ON_UPDATED_RESOURCE : function (url) {
+                        events.core.fire(flex.registry.events.system.cache.GROUP, flex.registry.events.system.cache.ON_UPDATED_RESOURCE, url);
+                    },
+                }
+            },
+            actions : {
+                reset   : (function () {
+                    var done = false;
+                    return function (url, force) {
+                        var force = typeof force === 'boolean' ? force : false;
+                        if (done === false) {
+                            done = true;
+                            if (cache.storage.data.reseted === false || force === true) {
+                                system.localStorage.reset(options.other.STORAGE_PREFIX);
+                                logs.log('[CACHE]: cache was reseted. The reason is "' + url + '"', logs.types.WARNING);
+                                cache.storage.data.reseted = true;
+                                cache.storage.save();
+                            } else {
+                                cache.storage.data.reseted = false;
+                                cache.storage.save();
+                            }
+                        }
+                    };
+                }()),
+                hash    : function () {
+                    var hash    = null,
+                        script  = document.querySelector('script[src*="' + options.files.CORE + '"]');
+                    if (script !== null) {
+                        hash = system.url.parse(script.src.toLowerCase());
+                        if (hash.params !== null) {
+                            if (hash.params[options.cache.URL_PARAM_VERSION]) {
+                                hash = hash.params[options.cache.URL_PARAM_VERSION];
+                                if (cache.storage.data.hash !== hash) {
+                                    cache.storage.data.hash = hash;
+                                    cache.storage.save();
+                                    cache.actions.reset(hash, true);
+                                }
+                            }
+                        }
+                    }
+                    return hash;
+                }
+            },
+            storage : {
+                data        : {
+                    reseted : true,
+                    hash    : null
+                },
+                load        : function () {
+                    function validate(data) {
+                        for (var key in cache.storage.data) {
+                            if (typeof data[key] === 'undefined') {
+                                //It means that flex.core.js was updated (block cache)
+                                return false;
+                            }
+                        }
+                        return true;
+                    };
+                    var data = system.localStorage.getJSON(options.cache.STORAGE);
+                    if (data !== null) {
+                        if (validate(data) === true) {
+                            cache.storage.data = data;
+                        } else {
+                            cache.storage.save();
+                        }
+                    }
+                    return false;
+                },
+                save        : function(){
+                    system.localStorage.setJSON(options.cache.STORAGE, cache.storage.data);
+                },
+            },
+        };
         hashes = {
             storage: {
                 data    : {},
                 get     : function (){
-                    hashes.storage.data = system.localStorage.getJSON(options.hashes.LOCAL_STORAGE_NAME);
+                    hashes.storage.data = system.localStorage.getJSON(options.hashes.LOCAL_STORAGE_NAME, options.other.STORAGE_PREFIX);
                     if (typeof hashes.storage.data !== 'object' || hashes.storage.data === null) {
                         hashes.storage.create();
                     }
@@ -1041,7 +1186,7 @@
                     hashes.storage.update();
                 },
                 update  : function () {
-                    system.localStorage.setJSON(options.hashes.LOCAL_STORAGE_NAME, hashes.storage.data);
+                    system.localStorage.setJSON(options.hashes.LOCAL_STORAGE_NAME, hashes.storage.data, options.other.STORAGE_PREFIX);
                 }
             },
             get     : function (url) {
@@ -1760,7 +1905,8 @@
                                 value   : response.original,
                                 url     : url,
                                 hash    : hash
-                            }
+                            },
+                            options.other.STORAGE_PREFIX
                         );
                     },
                     fail    : function (request, url, response, hash) {
@@ -1856,7 +2002,7 @@
                         modules.resources.loader.load(resource.url, resource.hash, resource.autoHash);
                     };
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.getJSON(resource.url),
+                        storaged        = localStorage.getJSON(resource.url, options.other.STORAGE_PREFIX),
                         regs            = options.regs.resources;
                     if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                         if (resource.hash === storaged.hash) {
@@ -1918,7 +2064,8 @@
                                         hash: settings.hash
                                     }
                                 ),
-                                true
+                                true,
+                                options.other.STORAGE_PREFIX
                             );
                         }
                     } else {
@@ -1936,7 +2083,7 @@
                     /// <param name="hash" type="string">Control hash for resource</param>
                     /// <returns type="object">Value of resource if success and NULL if not</returns>
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.get(name, true);
+                        storaged        = localStorage.get(name, true, options.other.STORAGE_PREFIX);
                     if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                         try{
                             storaged = JSON.parse(storaged);
@@ -1960,13 +2107,17 @@
                             } else {
                                 //Log message
                                 logs.log('[MODULES]:: module [' + name + '] will be updated.', logs.types.KERNEL_LOGS);
-                                localStorage.del(name);
+                                cache.events.fire.ON_UPDATED_MODULE(name);
+                                localStorage.del(name, options.other.STORAGE_PREFIX);
                                 return null;
                             }
                         } catch (e) {
-                            localStorage.del(name);
+                            cache.events.fire.ON_NEW_MODULE(name);
+                            localStorage.del(name, options.other.STORAGE_PREFIX);
                             return null;
                         }
+                    } else {
+                        cache.events.fire.ON_NEW_MODULE(name);
                     }
                     return null;
                 },
@@ -1977,7 +2128,7 @@
                     /// <param name="name" type="string">Name of resource</param>
                     /// <returns type="string">Value of hash</returns>
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.get(name, true);
+                        storaged        = localStorage.get(name, true, options.other.STORAGE_PREFIX);
                     if (storaged !== null) {
                         try{
                             storaged = JSON.parse(storaged);
@@ -2164,7 +2315,8 @@
                                     hash: parameters.hash
                                 }
                             ),
-                            true
+                            true,
+                            options.other.STORAGE_PREFIX
                         );
                     }
                     return null;
@@ -2177,20 +2329,24 @@
                     /// <param name="hash"  type="string">Control hash for resource</param>
                     /// <returns type="object">Value of resource if success and NULL if not</returns>
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.get(url, true);
+                        storaged        = localStorage.get(url, true, options.other.STORAGE_PREFIX);
                     if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                         try {
                             storaged = JSON.parse(storaged);
                             if (storaged.hash === hash) {
                                 return storaged;
                             } else {
-                                localStorage.del(url);
+                                localStorage.del(url, options.other.STORAGE_PREFIX);
+                                cache.events.fire.ON_UPDATED_RESOURCE(url);
                                 return null;
                             }
                         } catch (e) {
-                            localStorage.del(url);
+                            cache.events.fire.ON_NEW_RESOURCE(url);
+                            localStorage.del(url, options.other.STORAGE_PREFIX);
                             return null;
                         }
+                    } else {
+                        cache.events.fire.ON_NEW_RESOURCE(url);
                     }
                     return null;
                 },
@@ -2201,7 +2357,7 @@
                     /// <param name="url" type="string">URL of resource</param>
                     /// <returns type="string">Value of hash</returns>
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.get(url, true);
+                        storaged        = localStorage.get(url, true, options.other.STORAGE_PREFIX);
                     if (storaged !== null) {
                         try {
                             storaged = JSON.parse(storaged);
@@ -2411,7 +2567,8 @@
                                     hash: parameters.hash,
                                 }
                             ),
-                            true
+                            true,
+                            options.other.STORAGE_PREFIX
                         );
                     }
                     return null;
@@ -2423,21 +2580,25 @@
                     /// <param name="url" type="string">URL of resource</param>
                     /// <returns type="object">Value of resource if success and NULL if not</returns>
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.get(url, true);
+                        storaged        = localStorage.get(url, true, options.other.STORAGE_PREFIX);
                     if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                         try {
                             storaged = JSON.parse(storaged);
                             if (storaged.hash !== hash) {
                                 logs.log('[ASYNCHRONOUS]:: resource [' + url + '] will be updated.', logs.types.KERNEL_LOGS);
-                                localStorage.del(url);
+                                localStorage.del(url, options.other.STORAGE_PREFIX);
+                                cache.events.fire.ON_UPDATED_RESOURCE(url);
                                 return null;
                             } else {
                                 return storaged;
                             }
                         } catch (e) {
-                            localStorage.del(url);
+                            localStorage.del(url, options.other.STORAGE_PREFIX);
+                            cache.events.fire.ON_NEW_RESOURCE(url);
                             return null;
                         }
+                    } else {
+                        cache.events.fire.ON_NEW_RESOURCE(url);
                     }
                     return null;
                 },
@@ -3317,7 +3478,7 @@
                 return null;
             },
             localStorage: {
-                get     : function (key, decode) {
+                get         : function (key, decode, prefix) {
                     /// <signature>
                     ///     <summary>Get value from localStorage</summary>
                     ///     <param name="key"       type="string"   >Key of value in localStorage</param>
@@ -3329,10 +3490,18 @@
                     ///     <param name="decode"    type="boolean"  >True - decode from BASE64String</param>
                     ///     <returns type="any">Value from localStorage</returns>
                     /// </signature>
+                    /// <signature>
+                    ///     <summary>Get value from localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value in localStorage</param>
+                    ///     <param name="decode"    type="boolean"  >True - decode from BASE64String</param>
+                    ///     <param name="prefix"    type="string"   >Prefix for key of value</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
                     var value = null,
-                        decode  = typeof decode === 'boolean' ? decode : false;
+                        decode  = typeof decode === 'boolean' ? decode : false,
+                        prefix  = typeof prefix === 'string' ? prefix : '';
                     try {
-                        value = window.localStorage.getItem(key);
+                        value = window.localStorage.getItem(prefix + key);
                         if (typeof value !== "string") {
                             value = null;
                         }
@@ -3345,7 +3514,7 @@
                         return null;
                     }
                 },
-                set     : function (key, value, encode) {
+                set         : function (key, value, encode, prefix) {
                     /// <signature>
                     ///     <summary>Save value in localStorage</summary>
                     ///     <param name="key"       type="string"   >Key of value</param>
@@ -3359,43 +3528,65 @@
                     ///     <param name="decode"    type="boolean"  >True - encode to BASE64String</param>
                     ///     <returns type="any">Value from localStorage</returns>
                     /// </signature>
+                    /// <signature>
+                    ///     <summary>Save value in localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <param name="decode"    type="boolean"  >True - encode to BASE64String</param>
+                    ///     <param name="prefix"    type="string"   >Prefix for key of value</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
                     var result_value = value,
-                        encode          = typeof encode === 'boolean' ? encode : false;
+                        encode          = typeof encode === 'boolean' ? encode : false,
+                        prefix          = typeof prefix === 'string' ? prefix : '';
                     try {
-                        window.localStorage.removeItem(key);
+                        window.localStorage.removeItem(prefix + key);
                         if (encode !== false) {
                             result_value = typeof value !== 'string' ? JSON.stringify(value) : result_value;
                             result_value = system.convertor.UTF8.   encode(result_value);
                             result_value = system.convertor.BASE64. encode(result_value);
                         }
-                        window.localStorage.setItem(key, result_value);
+                        window.localStorage.setItem(prefix + key, result_value);
                         return true;
                     } catch (e) {
                         logs.log('Error during saving data into localStorage. [key]:[' + key + ']', logs.types.WARNING);
                         return false;
                     }
                 },
-                del     : function (key) {
+                del         : function (key, prefix) {
                     /// <signature>
                     ///     <summary>Remove value from localStorage</summary>
                     ///     <param name="key" type="string">Key of value</param>
                     ///     <returns type="boolean">True - success, False - fail</returns>
                     /// </signature>
+                    /// <signature>
+                    ///     <summary>Remove value from localStorage</summary>
+                    ///     <param name="key"       type="string">Key of value</param>
+                    ///     <param name="prefix"    type="string">Prefix for key of value</param>
+                    ///     <returns type="boolean">True - success, False - fail</returns>
+                    /// </signature>
+                    var prefix = typeof prefix === 'string' ? prefix : '';
                     try {
-                        window.localStorage.removeItem(key);
+                        window.localStorage.removeItem(prefix + key);
                         return true;
                     } catch (e) {
                         logs.log('Error during deleting data from localStorage. [key]:[' + key + ']', logs.types.WARNING);
                         return null;
                     }
                 },
-                getJSON : function (key) {
+                getJSON     : function (key, prefix) {
                     /// <signature>
                     ///     <summary>Get value from localStorage and convert it to JSON</summary>
                     ///     <param name="key" type="string">Key of value in localStorage</param>
                     ///     <returns type="any">Value from localStorage</returns>
                     /// </signature>
-                    var storaged = system.localStorage.get(key, true);
+                    /// <signature>
+                    ///     <summary>Get value from localStorage and convert it to JSON</summary>
+                    ///     <param name="key"       type="string">Key of value in localStorage</param>
+                    ///     <param name="prefix"    type="string">Prefix for key of value</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
+                    var storaged = system.localStorage.get(key, true, prefix);
                     if (storaged !== null) {
                         try{
                             storaged = JSON.parse(storaged);
@@ -3406,14 +3597,59 @@
                     }
                     return null;
                 },
-                setJSON : function (key, value) {
+                setJSON     : function (key, value, prefix) {
                     /// <signature>
                     ///     <summary>Stringify object from JSON and save it in localStorage</summary>
                     ///     <param name="key"       type="string"   >Key of value</param>
                     ///     <param name="value"     type="any"      >Value</param>
                     ///     <returns type="any">Value from localStorage</returns>
                     /// </signature>
-                    return system.localStorage.set(key, JSON.stringify(value), true);
+                    /// <signature>
+                    ///     <summary>Stringify object from JSON and save it in localStorage</summary>
+                    ///     <param name="key"       type="string"   >Key of value</param>
+                    ///     <param name="value"     type="any"      >Value</param>
+                    ///     <param name="prefix"    type="string"   >Prefix for key of value</param>
+                    ///     <returns type="any">Value from localStorage</returns>
+                    /// </signature>
+                    return system.localStorage.set(key, JSON.stringify(value), true, prefix);
+                },
+                reset       : function (prefix) {
+                    /// <signature>
+                    ///     <summary>Clear all data from localStorage</summary>
+                    ///     <returns type="boolean">true - success; false - fail</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Clear all data from localStorage</summary>
+                    ///     <param name="prefix" type="string">Remove value with key started with prefix</param>
+                    ///     <returns type="boolean">true - success; false - fail</returns>
+                    /// </signature>
+                    var prefix  = typeof prefix === 'string' ? prefix : '',
+                        keys    = [];
+                    try {
+                        if (prefix !== null) {
+                            for (var key in window.localStorage) {
+                                if (key.indexOf(prefix) === 0) {
+                                    keys.push(key);
+                                }
+                            }
+                            keys.forEach(function (key) {
+                                window.localStorage.removeItem(key);
+                            });
+                        } else {
+                            window.localStorage.clear();
+                        }
+                        return true;
+                    } catch (e) {
+                        return false;
+                    }
+                },
+                isAvailable : function () {
+                    var id      = IDs.id(),
+                        result  = false;
+                    system.localStorage.set(id, id);
+                    result = system.localStorage.get(id) === id ? true : false;
+                    system.localStorage.del(id);
+                    return result;
                 }
             },
             resources : {
@@ -3816,6 +4052,32 @@
                     }
                     return url;
                 },
+                getParams       : function (url) {
+                    /// <signature>
+                    ///     <summary>Parsing of parameters in URL</summary>
+                    ///     <param name="url"       type="string">URL</param>
+                    ///     <returns type="object">{url: string; params: object}</returns>
+                    /// </signature>
+                    var params = null,
+                        _params = null;
+                    url     = url.split('?');
+                    params  = url.length === 2 ? url[1] : null;
+                    url     = url[0];
+                    if (params !== null) {
+                        _params = params.split('&');
+                        params  = {};
+                        _params.forEach(function (param) {
+                            var pear = param.split('=');
+                            if (pear.length === 2) {
+                                params[pear[0]] = pear[1];
+                            }
+                        });
+                    }
+                    return {
+                        url     : url,
+                        params  : params
+                    };
+                },
                 restoreFullURL  : function (url){
                     /// <signature>
                     ///     <summary>Add current domain to URL (if there are no definition of domain)</summary>
@@ -3864,7 +4126,7 @@
                                 }
                                 previous = index;
                             } else {
-                                clear_url += part;
+                                clear_url += '/' + part;
                             }
                         });
                         return (valid === true ? { count: count, url: clear_url } : false);
@@ -3878,9 +4140,13 @@
                         info        = null,
                         origin      = typeof origin === 'string' ? origin : null,
                         back_steps  = 0,
-                        _origin     = null;
+                        _origin     = null,
+                        params      = null;
                     if (typeof url === 'string') {
                         url     = correction(url);
+                        params  = system.url.getParams(url);
+                        url     = params.url;
+                        params  = params.params;
                         info    = system.url.getURLInfo(url);
                         if (info !== null) {
                             back_steps = steps(url);
@@ -3897,7 +4163,7 @@
                                                 _origin.parts = _origin.parts.map(function (item) {
                                                     return (item === '//' ? '' : item);
                                                 });
-                                                url = _origin.parts.join('/') + '/' + back_steps.url;
+                                                url = _origin.parts.join('/') + back_steps.url;
                                                 return system.url.parse(url);
                                             }
                                         }
@@ -3936,6 +4202,7 @@
                                             protocol    : info.protocol !== ':'? info.protocol  : window.location.protocol,
                                             home        : info.hostname === '' ? window.location.protocol   + '//' + window.location.host   : info.protocol + '//' + info.host,
                                             _home       : info.hostname !== '' ? info.protocol + '//' + info.host : '',
+                                            params      : params,
                                             parts       : null
                                         };
                                         if (result.target.length > 0) {
@@ -4000,7 +4267,7 @@
             rendering   : {
                 CRITICAL        : 'color: #FF0000;font-weight:bold;',
                 LOGICAL         : 'color: #00FFF7;font-weight:bold;',
-                WARNING         : 'color: #E6FF00;font-weight:bold;',
+                WARNING         : 'color: #A69600;font-weight:bold;',
                 NOTIFICATION    : 'color: #988DFF;font-weight:bold;',
                 LOGS            : 'color: #6C6C6C;',
                 KERNEL_LOGS     : 'color: #008B0E;font-weight:bold;',
@@ -4034,8 +4301,10 @@
                 var type = type || 'LOGS';
                 if (console && logs.types[type]) {
                     if (typeof console.log !== 'undefined') {
-                        console.log('%c [' + type + ']' + '%c' + message, logs.rendering[type], logs.rendering.LOGS);
-                        logs.callEvent(message, type);
+                        if (config.defaults.logs.SHOW.indexOf(type) !== -1) {
+                            console.log('%c [' + type + ']' + '%c' + message, logs.rendering[type], logs.rendering.LOGS);
+                            logs.callEvent(message, type);
+                        }
                     }
                 }
             },
