@@ -42,7 +42,7 @@
             IDs             = {},
             wrappers        = {},
             logs            = {};
-        config = {
+        config          = {
             defaults : {
                 resources   :{
                     USE_STORAGED    : { type: 'boolean',    value: true },
@@ -153,31 +153,43 @@
                 }
             },
         };
-        coreEvents = {
+        coreEvents      = {
             onFlexLoad: function () {
-                system.handle(config.defaults.events.onFlexLoad, null, 'config.defaults.events.onFlexLoad', this);
-                if (config.defaults.events.onPageLoad !== null) {
-                    if (document.readyState !== 'complete') {
-                        events.DOM.add(window, 'load', config.defaults.events.onPageLoad);
-                    } else {
-                        system.handle(config.defaults.events.onPageLoad, null, 'config.defaults.events.onPageLoad', this);
+                if (modules.isReady() && external.isReady() && modules.attach.unexpected.isReady()) {
+                    system.handle(config.defaults.events.onFlexLoad, null, 'config.defaults.events.onFlexLoad', this);
+                    if (config.defaults.events.onPageLoad !== null) {
+                        if (document.readyState !== 'complete') {
+                            events.DOM.add(window, 'load', config.defaults.events.onPageLoad);
+                        } else {
+                            system.handle(config.defaults.events.onPageLoad, null, 'config.defaults.events.onPageLoad', this);
+                        }
                     }
+                    //Launch self-lanuched appended modules
+                    modules.attach.unexpected.launched.accept();
+                    //Run hashes updates
+                    hashes.update.queue.unlock();
                 }
-                hashes.update.queue.unlock();
             }
         };
-        options     = {
-            storage : {
+        options         = {
+            storage     : {
                 GROUP               : 'flex.core',
                 RESOURCES_JOURNAL   : 'flex.modules.resources.journal',
                 UNEXPECTED_JOURNAL  : 'flex.modules.unexpected.journal',
                 DEFAULT_CONFIG      : 'flex.defualt.config',
                 DEFAULT_CONFIG_FLAG : 'flex.defualt.config.flag',
             },
-            regs    : {
-                resources: {
-                    CSS : /\.css$/gi,
-                    JS  : /\.js$/gi,
+            resources   : {
+                types   : {
+                    CSS: '.css',
+                    JS: '.js',
+                }
+            },
+            regs: {
+                urls    : {
+                    PARAMS      : /\?.*/gi,
+                    EXTENSION   : /(\.[\w\n]*)$/gi,
+                    JS_URL      : /[\w]*:\/\/[\w\n:\/\.]*\.js/gi
                 }
             },
             registry: {
@@ -237,7 +249,7 @@
                 STORAGE_PREFIX  : '[FLEX_SYSTEM_RESURCES]'
             }
         };
-        registry = {
+        registry        = {
             load        : function () {
                 function getURL(url) {
                     var path = config.defaults.paths.CORE;
@@ -287,7 +299,7 @@
                 }
             }
         };
-        ajax = {
+        ajax            = {
             settings    : {
                 DEFAULT_TIMEOUT : 15000, //ms ==> 1000 ms = 1 s
                 DEFAULT_METHOD  : 'post'
@@ -658,7 +670,7 @@
                 }
             }
         };
-        oop     = {
+        oop             = {
             namespace   : {
                 create  : function (namespace, root) {
                     /// <signature>
@@ -1053,7 +1065,7 @@
                 }
             }
         };
-        cache = {
+        cache           = {
             init    : function(){
                 if (system.localStorage.isAvailable() !== false) {
                     cache.storage.load();
@@ -1171,7 +1183,7 @@
                 },
             },
         };
-        hashes = {
+        hashes          = {
             storage: {
                 data    : {},
                 get     : function (){
@@ -1330,7 +1342,10 @@
                 }
             }
         };
-        modules = {
+        modules         = {
+            isReady     : function(){
+                return overhead.register.isReady(options.register.MODULES_HISTROY);
+            },
             preload     : function () {
                 var libraries = config.defaults.resources.MODULES;
                 if (libraries instanceof Array && modules.registry.is_ready !== false) {
@@ -1724,17 +1739,85 @@
                     },
                 },
                 unexpected: {
-                    journal: {
-                        add : function (url, as_module) {
-                            var journal = overhead.globaly.get(options.storage.GROUP, (as_module === true ? '(m)' : '(r)') + options.storage.UNEXPECTED_JOURNAL, {});
+                    isReady     : function(){
+                        return modules.attach.unexpected.journal.isReady(true);
+                    },
+                    journal     : {
+                        consts      : {
+                            MODULES     : '(modules)',
+                            RESOURCES   : '(resources)'
+                        },
+                        modules     : {
+                            add     : function (url) {
+                                return modules.attach.unexpected.journal.add(url, true);
+                            },
+                            done    : function (url) {
+                                modules.attach.unexpected.journal.done(url, true);
+                                if (modules.attach.unexpected.journal.isReady(true)) {
+                                    coreEvents.onFlexLoad();
+                                }
+                            },
+                            isIn    : function (url) {
+                                return modules.attach.unexpected.journal.isIn(url, true);
+                            },
+                            isReady : function () {
+                                return modules.attach.unexpected.journal.isReady(true);
+                            }
+                        },
+                        resource    : {
+                            add : function (url) {
+                                return modules.attach.unexpected.journal.add(url, false);
+                            },
+                            done: function (url) {
+                                return modules.attach.unexpected.journal.done(url, false);
+                            },
+                            isIn: function (url) {
+                                return modules.attach.unexpected.journal.isIn(url, false);
+                            }
+                        },
+                        add         : function (url, isModule) {
+                            var consts  = modules.attach.unexpected.journal.consts,
+                                journal = overhead.globaly.get(options.storage.GROUP, (isModule ? consts.MODULES : consts.RESOURCES) + options.storage.UNEXPECTED_JOURNAL, {});
                             if (!journal[url]) {
+                                journal[url] = false;
+                            }
+                        },
+                        done        : function (url, isModule) {
+                            var consts  = modules.attach.unexpected.journal.consts,
+                                journal = overhead.globaly.get(options.storage.GROUP, (isModule ? consts.MODULES : consts.RESOURCES) + options.storage.UNEXPECTED_JOURNAL, {});
+                            if (journal[url] !== undefined) {
                                 journal[url] = true;
                             }
                         },
-                        isIn: function (url, as_module) {
-                            var journal = overhead.globaly.get(options.storage.GROUP, (as_module === true ? '(m)' : '(r)') + options.storage.UNEXPECTED_JOURNAL, {});
-                            return typeof journal[url] === 'undefined' ? false : true;
-                        }
+                        isIn        : function (url, isModule) {
+                            var consts  = modules.attach.unexpected.journal.consts,
+                                journal = overhead.globaly.get(options.storage.GROUP, (isModule ? consts.MODULES : consts.RESOURCES) + options.storage.UNEXPECTED_JOURNAL, {});
+                            return journal[url] === undefined ? false : true;
+                        },
+                        isReady     : function (isModule) {
+                            var consts  = modules.attach.unexpected.journal.consts,
+                                journal = overhead.globaly.get(options.storage.GROUP, (isModule ? consts.MODULES : consts.RESOURCES) + options.storage.UNEXPECTED_JOURNAL, {}),
+                                ready   = true;
+                            oop.objects.forEach(journal, function (url, value) {
+                                ready = ready === false ? false : value;
+                            });
+                            return ready;
+                        },
+                    },
+                    launched    : {
+                        storage : [],
+                        add     : function (handle) {
+                            modules.attach.unexpected.launched.storage.push(handle);
+                        },
+                        reset   : function (handle) {
+                            modules.attach.unexpected.launched.storage = null;
+                        },
+                        accept  : function (handle) {
+                            modules.attach.unexpected.launched.storage.forEach(function (handle) {
+                                handle.call(window);
+                            });
+                            modules.attach.unexpected.launched.reset();
+                        },
                     },
                     safely      : function (parameters) {
                         function validateSRC(src) {
@@ -1744,49 +1827,88 @@
                                 return null;
                             }
                         };
+                        function proceed() {
+                            //Add module to journal
+                            modules.attach.unexpected.journal.modules.add(parameters.src);
+                            //Correct paths in resources
+                            parameters.require = parameters.require.map(function (resource) {
+                                if (typeof resource.url === 'string') {
+                                    resource.url = validateSRC(resource.url);
+                                    if (resource !== null) {
+                                        //Remove all already loaded resources
+                                        resource = modules.attach.unexpected.journal.resource.isIn(resource.url) === false ? resource : null;
+                                    }
+                                    return resource;
+                                } else {
+                                    logs.log('[' + parameters.name + ']:: some resource was defined incorrectly. Field [url] was not found.', logs.types.CRITICAL);
+                                }
+                                return null;
+                            });
+                            parameters.require = parameters.require.filter(function (resource) {
+                                return resource !== null ? true : false;
+                            });
+                            //Add hash to update
+                            hashes.update.add(parameters.src);
+                            //Try init module
+                            if (parameters.require.length > 0) {
+                                //Create queue to wait for all requared resources
+                                requaredPackageID = IDs.id(parameters.src);
+                                overhead.register.open(
+                                    requaredPackageID,
+                                    parameters.require.map(function (resource) { return resource.url; }),
+                                    function () {
+                                        //After all resources are loaded -> init module
+                                        modules.attach.unexpected.embody(parameters);
+                                    }
+                                );
+                                //Add resources to journal (it can be modules too)
+                                parameters.require.forEach(function (resource) {
+                                    modules.attach.unexpected.journal.resource.add(resource.url);
+                                });
+                                //Load resources
+                                parameters.require.forEach(function (resource) {
+                                    //Add update of hash
+                                    hashes.update.add(resource.url);
+                                    //Call resource
+                                    external.repository.call(resource.url, hashes.get(resource.url), function () {
+                                        //Done in package
+                                        overhead.register.done(requaredPackageID, resource.url);
+                                        //Done in journal
+                                        modules.attach.unexpected.journal.resource.done(resource.url);
+                                    });
+                                });
+                            } else {
+                                //Init module
+                                modules.attach.unexpected.embody(parameters);
+                            }
+                        };
+                        var requaredPackageID = null;
                         if (oop.objects.validate(parameters, [  { name: 'name',             type: 'string'                          },
+                                                                { name: 'launch',           type: 'function',           value: null },
                                                                 { name: 'constructor',      type: 'function',           value: null },
-                                                                { name: 'module',           type: 'function'                        },
+                                                                { name: 'module',           type: 'function',           value: null },
                                                                 { name: 'require',          type: 'array',              value: []   },
                                                                 { name: 'onBeforeAttach',   type: 'function',           value: null },
                                                                 { name: 'onAfterAttach',    type: 'function',           value: null },
-                                                                { name: 'extend', type: ['array', 'object'], value: null }]) !== false) {
-                            parameters.src = external.loader.last.get();
+                                                                { name: 'extend',           type: ['array', 'object'],  value: null }]) !== false) {
+                            parameters.src = system.resources.js.getCurrentSRC();
                             if (parameters.src !== null) {
-                                if (modules.attach.unexpected.journal.isIn(parameters.src, true) === false) {
-                                    if (modules.registry.add({
-                                            name        : parameters.name,
-                                            source      : parameters.src,
-                                            hash        : hashes.get(parameters.src),
-                                            autoHash    : true
-                                    }) !== false) {
-                                        //Add to journal
-                                        modules.attach.unexpected.journal.add(parameters.src, true);
-                                        //Add to queue of external resources
-                                        external.queue.add('(m)' + parameters.src);
-                                        //Add hash to update
-                                        hashes.update.add(parameters.src);
-                                        //Correct paths in resources
-                                        parameters.require = parameters.require.map(function (resource) {
-                                            if (typeof resource.url === 'string') {
-                                                resource.url = validateSRC(resource.url);
-                                                if (resource !== null) {
-                                                    //Remove all already loaded resources
-                                                    resource = modules.attach.unexpected.journal.isIn(resource.url, false) === false ? resource : null;
-                                                }
-                                                return resource;
-                                            } else {
-                                                logs.log('[' + parameters.name + ']:: some resource was defined incorrectly. Field [url] was not found.', logs.types.CRITICAL);
-                                            }
-                                            return null;
-                                        });
-                                        parameters.require = parameters.require.filter(function (resource) {
-                                            return resource !== null ? true : false;
-                                        });
-                                        //Processing resources
-                                        modules.attach.unexpected.require(parameters);
-                                    } else {
-                                        logs.log('[' + parameters.name + ']:: attempt to attach module twice', logs.types.WARNING);
+                                if (modules.attach.unexpected.journal.modules.isIn(parameters.src) === false) {
+                                    if (parameters.launch !== null) {
+                                        //Attauch as self-launched
+                                        proceed();
+                                    } else if (parameters.module !== null) {
+                                        //Attach as module
+                                        if (modules.registry.add({
+                                                name        : parameters.name,
+                                                source      : parameters.src,
+                                                hash        : hashes.get(parameters.src),
+                                                autoHash    : true
+                                        }) !== false) {
+                                            proceed();
+                                        } else {
+                                            logs.log('[' + parameters.name + ']:: attempt to attach module twice', logs.types.WARNING);
+                                        }
                                     }
                                 }
                             } else {
@@ -1818,67 +1940,44 @@
                         var constructor_storage = null;
                         if (oop.objects.validate(parameters, [  { name: 'name',             type: 'string'                          },
                                                                 { name: 'src',              type: 'string'                          },
-                                                                { name: 'constructor',      type: 'function'                        },
-                                                                { name: 'module',           type: 'function'                        },
+                                                                { name: 'launch',           type: 'function',           value: null },
+                                                                { name: 'constructor',      type: 'function',           value: null },
+                                                                { name: 'module',           type: 'function',           value: null },
                                                                 { name: 'onBeforeAttach',   type: 'function',           value: null },
                                                                 { name: 'onAfterAttach',    type: 'function',           value: null },
                                                                 { name: 'extend',           type: ['array', 'object'],  value: [] } ]) !== false) {
-                            //Correct namespace
-                            parameters.name = modules.tools.fullName(parameters.name);
-                            //Get link to storage of library. Also it checks is library in registry or not
-                            constructor_storage = oop.namespace.get(parameters.name);
-                            if (constructor_storage !== null && constructor_storage !== false) {
-                                //Check is library attached or not
-                                if (typeof constructor_storage.create === 'undefined') {
-                                    //Add protofunction
-                                    parameters.protofunction            = parameters.constructor;
-                                    parameters.protofunction.prototype  = parameters.module;
-                                    //Make constructor
-                                    constructor_storage.create = modules.attach.embody.createConstructor(parameters.name, parameters.protofunction);
-                                    //Add to queue of external resources
-                                    external.queue.done('(m)' + parameters.src);
-                                    return true;
+                            if (parameters.launch !== null) {
+                                //Attauch as self-launched
+                                modules.attach.unexpected.launched.add(parameters.launch);
+                                //Accept module
+                                modules.attach.unexpected.journal.modules.done(parameters.src);
+                                return true;
+                            } else if (parameters.module !== null) {
+                                //Attauch as module
+                                //Correct namespace
+                                parameters.name = modules.tools.fullName(parameters.name);
+                                //Get link to storage of library. Also it checks is library in registry or not
+                                constructor_storage = oop.namespace.get(parameters.name);
+                                if (constructor_storage !== null && constructor_storage !== false) {
+                                    //Check is library attached or not
+                                    if (typeof constructor_storage.create === 'undefined') {
+                                        //Add protofunction
+                                        parameters.protofunction            = parameters.constructor === null ? function(){} : parameters.constructor;
+                                        parameters.protofunction.prototype  = parameters.module;
+                                        //Make constructor
+                                        constructor_storage.create = modules.attach.embody.createConstructor(parameters.name, parameters.protofunction);
+                                        //Accept module
+                                        modules.attach.unexpected.journal.modules.done(parameters.src);
+                                        return true;
+                                    }
                                 }
                             }
                         }
                         return false;
                     },
-                    require     : function (parameters) {
-                        var id = IDs.id(parameters.src);
-                        if (parameters.require.length > 0) {
-                            overhead.register.open(
-                                id,
-                                parameters.require.map(function (resource) { return resource.url; }),
-                                function () {
-                                    modules.attach.unexpected.embody(parameters);
-                                    parameters.require.forEach(function (resource) {
-                                        external.queue.done('(r)' + resource.url);
-                                    });
-                                }
-                            );
-                            //Add to journal
-                            parameters.require.forEach(function (resource) {
-                                //Add to journal
-                                modules.attach.unexpected.journal.add(resource.url, false);
-                            });
-                            //Load resources
-                            parameters.require.forEach(function (resource) {
-                                //Add to queue of external resources
-                                external.queue.add('(r)' + resource.url);
-                                //Call resource
-                                external.repository.call(resource.url, hashes.get(resource.url), function () {
-                                    overhead.register.done(id, resource.url);
-                                });
-                                //Add update of hash
-                                hashes.update.add(resource.url);
-                            });
-                        } else {
-                            modules.attach.unexpected.embody(parameters);
-                        }
-                    }
                 },
             },
-            resources: {
+            resources   : {
                 loader: {
                     load    : function (url, hash, autoHash) {
                         var request = ajax.create(
@@ -1960,11 +2059,12 @@
                 },
                 load    : function (name, resource) {
                     function restore(name, resource) {
-                        var wrapper = null;
-                        if (resource.url.search(regs.CSS) !== -1) {
+                        var wrapper         = null,
+                            resourceType    = system.url.getTypeOfResource(resource.url);
+                        if (resourceType === options.resources.types.CSS) {
                             //Resource: CSS
                             system.resources.css.adoption(resource.value, null, system.url.restoreFullURL(resource.url));
-                        } else if (resource.url.search(regs.JS) !== -1) {
+                        } else if (resourceType === options.resources.types.JS) {
                             //Resource: JS
                             wrapper = new Function(resource.value);
                             try {
@@ -1977,7 +2077,8 @@
                         overhead.register.done(options.register.RESOURCES_HISTORY + ':' + name, resource.url);
                     };
                     function reload(name, resource) {
-                        if (resource.url.search(regs.CSS) !== -1) {
+                        var resourceType = system.url.getTypeOfResource(resource.url);
+                        if (resourceType === options.resources.types.CSS) {
                             //Resource: CSS
                             system.resources.css.connect(
                                 resource.url,
@@ -1987,7 +2088,7 @@
                                 },
                                 null
                             );
-                        } else if (resource.url.search(regs.JS) !== -1) {
+                        } else if (resourceType === options.resources.types.JS) {
                             //Resource: JS
                             system.resources.js.connect(
                                 resource.url,
@@ -2002,8 +2103,7 @@
                         modules.resources.loader.load(resource.url, resource.hash, resource.autoHash);
                     };
                     var localStorage    = system.localStorage,
-                        storaged        = localStorage.getJSON(resource.url, options.other.STORAGE_PREFIX),
-                        regs            = options.regs.resources;
+                        storaged        = localStorage.getJSON(resource.url, options.other.STORAGE_PREFIX);
                     if (storaged !== null && config.defaults.resources.USE_STORAGED !== false) {
                         if (resource.hash === storaged.hash) {
                             restore(name, storaged);
@@ -2182,8 +2282,11 @@
                 }
             }
         };
-        external = {
-            queue: {
+        external        = {
+            isReady     : function(){
+                return overhead.register.isReady(options.register.EXTERNAL_HISTROY);
+            },
+            queue       : {
                 create  : function (resources) {
                     overhead.register.open(
                         options.register.EXTERNAL_HISTROY,
@@ -2266,15 +2369,14 @@
                 ///     [function]  [option] callback                           &#13;&#10;
                 /// }</param>
                 /// <returns type="boolean">true if success and false if not</returns>
-                var regs    = options.regs.resources,
-                    Embody  = null;
-                if (parameters.url.search(regs.JS) !== -1) {
+                var Embody          = null,
+                    resourceType    = system.url.getTypeOfResource(parameters.url);
+                if (resourceType === options.resources.types.JS) {
                     Embody = JS;
-                } else if (parameters.url.search(regs.CSS) !== -1) {
+                } else if (resourceType === options.resources.types.CSS) {
                     Embody = CSS;
                 }
                 if (Embody !== null) {
-                    external.loader.last.set(parameters.url);
                     Embody(
                         parameters.body,
                         parameters.url,
@@ -2393,16 +2495,7 @@
                     }
                 }
             },
-            loader: {
-                last    : {
-                    url : null,
-                    set : function (url) {
-                        external.loader.last.url = typeof url === 'string' ? url : null;
-                    },
-                    get : function () {
-                        return external.loader.last.url;
-                    }
-                },
+            loader      : {
                 load    : function (url, hash, embody, callback) {
                     var request = ajax.create(
                         null,
@@ -2423,7 +2516,6 @@
                     logs.log('[EXTERNAL]:: resource: [' + url + '] will be reloaded.', logs.types.KERNEL_LOGS);
                 },
                 success : function (url, response, hash, embody, callback) {
-                    external.loader.last.set(url);
                     external.repository.add({
                         url : url,
                         hash: hash,
@@ -2440,12 +2532,11 @@
                     logs.log('[EXTERNAL]:: resource: [' + url + '] is reloaded.', logs.types.KERNEL_LOGS);
                 },
                 fail    : function (request, url, response, hash) {
-                    external.loader.last.set(url);
                     logs.log('[EXTERNAL]:: cannot load resource: [' + url + '].', logs.types.CRITICAL);
                 }
             },
         };
-        asynchronous = {
+        asynchronous    = {
             preload     : function () {
                 var groups = config.defaults.resources.ASYNCHRONOUS;
                 if (groups instanceof Array) {
@@ -2533,11 +2624,11 @@
                 ///     [string]    storage                                     &#13;&#10;
                 /// }</param>
                 /// <returns type="boolean">true if success and false if not</returns>
-                var regs    = options.regs.resources,
-                    Embody  = null;
-                if (parameters.url.search(regs.JS) !== -1) {
+                var resourceType    = system.url.getTypeOfResource(parameters.url),
+                    Embody          = null;
+                if (resourceType === options.resources.types.JS) {
                     Embody = JS;
-                } else if (parameters.url.search(regs.CSS) !== -1) {
+                } else if (resourceType === options.resources.types.CSS) {
                     Embody = CSS;
                 }
                 if (Embody !== null) {
@@ -2703,7 +2794,7 @@
                 }
             }
         };
-        parsing     = {
+        parsing         = {
             js  : {
                 stringify       : function (_function) {
                     /// <summary>
@@ -2868,7 +2959,7 @@
                 }
             }
         };
-        overhead    = {
+        overhead        = {
             globaly : {
                 storage : {},
                 get     : function (group, name, default_value) {
@@ -3058,6 +3149,7 @@
                 }
             },
             register: {
+                //TODO: Add clear closed registers
                 settings: {
                     COMMON_STORAGE_NAME: 'FlexRegisterStorage'
                 },
@@ -3202,9 +3294,21 @@
                     }
                     return false;
                 },
+                isReady : function (name) {
+                    /// <summary>
+                    /// Is register done
+                    /// </summary>
+                    /// <param name="name"  type="string">Name of register</param>
+                    /// <returns type="boolean">true / false</returns>
+                    var storage = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {});
+                    if (storage[name]) {
+                        return storage[name].isReady();
+                    }
+                    return true;
+                },
             }
         };
-        events = {
+        events          = {
             DOM     : {
                 add     : (function () {
                     if (typeof window.addEventListener === "function") {
@@ -3423,7 +3527,7 @@
                 }
             }
         };
-        system = {
+        system          = {
             handle      : function (handle_body, handle_arguments, call_point, this_argument) {
                 /// <signature>
                 ///     <summary>Run function in safely mode</summary>
@@ -3652,13 +3756,13 @@
                     return result;
                 }
             },
-            resources : {
-                settings : {
+            resources   : {
+                settings    : {
                     RESOURCES_MARK_ATTR: { name: 'data-flex-connect-mark', value: 'dynamically' },
                     CSS_TIMER_PROPERTY : 'flex_css_load_event_timer',
                     CSS_TIMER_DURATION : 5000,
                 },
-                css: {
+                css         : {
                     settings    : {
                         URLS    : [
                             {
@@ -3880,8 +3984,8 @@
                         return cssText;
                     }
                 },
-                js: {
-                    connect : function (url, onLoad, onError) {
+                js          : {
+                    connect         : function (url, onLoad, onError) {
                         /// <signature>
                         ///     <summary>Connect JS resource via LINK in HEAD of page</summary>
                         ///     <param name="url"       type="string"   >URL to resource</param>
@@ -3928,7 +4032,7 @@
                         }
                         return false;
                     },
-                    adoption: function (jsScript, onFinish) {
+                    adoption        : function (jsScript, onFinish) {
                         /// <signature>
                         ///     <summary>Generate script within JS text</summary>
                         ///     <param name="jsScript"  type="string"   >JS text</param>
@@ -3952,9 +4056,26 @@
                             }
                         }
                     },
+                    getCurrentSRC   : function () {
+                        var urls = null;
+                        try {
+                            throw new Error('Script URL detection');
+                        }
+                        catch (e) {
+                            if (typeof e.stack === 'string') {
+                                urls = e.stack.match(options.regs.urls.JS_URL);
+                                if (urls instanceof Array) {
+                                    if (urls.length > 0) {
+                                        return urls[urls.length - 1];
+                                    }
+                                }
+                            }
+                            return null;
+                        }
+                    }
                 }
             },
-            convertor: {
+            convertor   : {
                 UTF8: {
                     encode: function (s) {
                         return unescape(encodeURIComponent(s));
@@ -4013,8 +4134,8 @@
                     }
                 }
             },
-            url     : {
-                settings: {
+            url         : {
+                settings            : {
                     parser: {
                         LAST        : /([^\/]*)$/gi,
                         CORRECTION  : /[\/\\]$/gi,
@@ -4023,7 +4144,7 @@
                         DOUBLE      : /\/{2,}/gi
                     }
                 },
-                getURLInfo      : function (url) {
+                getURLInfo          : function (url) {
                     var a       = document.createElement('a'),
                         result  = null;
                     if (typeof url === 'string') {
@@ -4043,7 +4164,7 @@
                     }
                     return result;
                 },
-                getCurrentDomain: function () {
+                getCurrentDomain    : function () {
                     var url = null;
                     if (window.location.origin) {
                         url = window.location.origin;
@@ -4052,7 +4173,7 @@
                     }
                     return url;
                 },
-                getParams       : function (url) {
+                getParams           : function (url) {
                     /// <signature>
                     ///     <summary>Parsing of parameters in URL</summary>
                     ///     <param name="url"       type="string">URL</param>
@@ -4078,7 +4199,7 @@
                         params  : params
                     };
                 },
-                restoreFullURL  : function (url){
+                restoreFullURL      : function (url){
                     /// <signature>
                     ///     <summary>Add current domain to URL (if there are no definition of domain)</summary>
                     ///     <param name="url"type="string">URL</param>
@@ -4099,7 +4220,7 @@
                     }
                     return null;
                 },
-                parse           : function (url, origin) {
+                parse               : function (url, origin) {
                     /// <signature>
                     ///     <summary>Parsing of URL</summary>
                     ///     <param name="url"       type="string">URL</param>
@@ -4237,16 +4358,26 @@
                     }
                     return null;
                 },
-                sterilize       : function (url) {
+                sterilize           : function (url) {
                     var protocol = IDs.id();
                     return url. replace(system.url.settings.parser.PROTOCOL, protocol).
                                 replace(system.url.settings.parser.BAD_SLASH, '/').
                                 replace(system.url.settings.parser.DOUBLE, '/').
                                 replace(protocol, '://');
+                },
+                getTypeOfResource   : function (url) {
+                    var _url = url.replace(options.regs.urls.PARAMS, '');
+                    _url = _url.match(options.regs.urls.EXTENSION);
+                    if (_url instanceof Array) {
+                        if (_url.length === 1) {
+                            return _url[0].toLowerCase();
+                        }
+                    }
+                    return null;
                 }
-            }
+            },
         };
-        IDs = {
+        IDs             = {
             id: (function () {
                 var index = 0;
                 return function (prefix) {
@@ -4255,7 +4386,7 @@
                 };
             }()),
         };
-        logs = {
+        logs            = {
             types       : {
                 CRITICAL        : 'CRITICAL',
                 LOGICAL         : 'LOGICAL',
@@ -4316,7 +4447,7 @@
                 }
             }
         };
-        wrappers = {
+        wrappers        = {
             callers     : {
                 node    : (function () {
                     var cache = {};
@@ -4512,7 +4643,7 @@
             }
         };
         //Private part
-        privates = {
+        privates        = {
             init    : config.init,
             oop     : {
                 objects     : {

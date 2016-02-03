@@ -56,6 +56,13 @@
                     NOTIFICATION: 'notification',
                     LOGS        : 'log',
                     KERNEL_LOGS : 'kernel_logs',
+                },
+                cache: {
+                    GROUP               : 'flex.system.cache.events',
+                    ON_NEW_MODULE       : 'ON_NEW_MODULE',
+                    ON_UPDATED_MODULE   : 'ON_UPDATED_MODULE',
+                    ON_NEW_RESOURCE     : 'ON_NEW_RESOURCE',
+                    ON_UPDATED_RESOURCE : 'ON_UPDATED_RESOURCE',
                 }
             }
         };

@@ -28,7 +28,7 @@
                             finish  : null
                         }
                     ],
-                    USE_STORAGED    : true,
+                    USE_STORAGED    : false,
                 },
                 paths   : {
                     CORE    : '/kernel',
@@ -36,16 +36,19 @@
                 },
                 events  : {
                     onFlexLoad: function () {
+                        //var short = flex.libraries.short.create();
+                        //short.getName();
                     },
                     onPageLoad: function () {
                         var presentation = flex.libraries.presentation.create();
                         presentation.start();
-                        var short = flex.libraries.short.create();
-                        short.getName();
                     }
                 },
                 settings: {
                     CHECK_PATHS_IN_CSS : true
+                },
+                logs: {
+                    SHOW: ['CRITICAL', 'LOGICAL', 'WARNING', 'NOTIFICATION', 'LOGS', 'KERNEL_LOGS']
                 }
             });
         },

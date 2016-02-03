@@ -47,6 +47,8 @@
                 areascroller: {  source: 'KERNEL::flex.ui.areascroller.js' },
                 /// <field type = 'function'>Controller of arearesizer</field>
                 arearesizer : {  source: 'KERNEL::flex.ui.arearesizer.js',    hash: 'HASHPROPERTY' },
+                /// <field type = 'function'>Controller of CSS modifications</field>
+                modifier    : { source: 'KERNEL::flex.ui.modifier.js', hash: 'HASHPROPERTY' },
             },
             presentation: {  source: 'program/presentation.js', hash: 'HASHPROPERTY' },
         };
