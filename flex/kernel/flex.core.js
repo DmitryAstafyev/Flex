@@ -54,13 +54,24 @@
                     CORE    : {
                         type    : 'string',
                         value   : function () {
-                            var url     = '',
-                                script  = document.querySelector('script[src*="' + options.files.CORE + '"]');
-                            if (script !== null) {
-                                url = system.url.parse(script.src.toLowerCase());
-                                url = url.path;
+                            function accept(url) {
+                                url                     = system.url.parse(url.toLowerCase());
+                                options.files.CORE      = url.target;
+                                options.files.CORE_URL  = url.url;
+                                url                     = url.path;
+                                return url;
+                            };
+                            var url     = system.resources.js.getCurrentSRC(),
+                                script  = null;
+                            if (url !== null) {
+                                return accept(url);
+                            } else {
+                                script = document.querySelector('script[src*="' + options.files.CORE + '"]');
+                                if (script !== null) {
+                                    return accept(script.src);
+                                }
                             }
-                            return url;
+                            throw new Error('Cannot detect URL and PATH to core script (default name: flex.core.js)');
                         }
                     },
                     ATTACH  : { type: 'string',     value: '/app'       },
@@ -91,7 +102,7 @@
                         ON_CRITICAL_ERROR   : { type: 'boolean', value: true },
                     }
                 },
-                logs    : {
+                logs        : {
                     SHOW: { type: 'array', value: ['CRITICAL', 'LOGICAL', 'WARNING'] }
                 }
             },
@@ -243,7 +254,8 @@
                 URL_PARAM_VERSION   : 'flexhash'
             },
             files   : {
-                CORE : 'flex.core.js'
+                CORE    : 'flex.core.js', //This is default value, will be apply in case of fail auto-detection
+                CORE_URL: ''
             },
             other   : {
                 STORAGE_PREFIX  : '[FLEX_SYSTEM_RESURCES]'
@@ -393,13 +405,17 @@
                 if (url !== null) {
                     //Define class for request
                     Request             = function (id, url, method, parameters, callbacks, timeout, headers) {
-                        this.id         = id;
-                        this.url        = url;
-                        this.method     = method;
-                        this.parameters = parameters;
-                        this.callbacks  = callbacks;
-                        this.timeout    = timeout;
-                        this.headers    = headers;
+                        this.id                 = id;
+                        this.url                = url;
+                        this.method             = method;
+                        this.parameters         = parameters;
+                        this.callbacks          = callbacks;
+                        this.timeout            = timeout;
+                        this.headers            = headers;
+                        this.timerID            = null;
+                        this.response           = null;
+                        this.responseHeaders    = null;
+                        this.httpRequest        = null;
                     };
                     Request.prototype   = {
                         id              : null,
@@ -460,7 +476,7 @@
                                 self.destroy(self);
                             }
                         },
-                        setHeaders  : function(self){
+                        setHeaders      : function(self){
                             //Set headers
                             if (self.headers !== null) {
                                 for (var key in self.headers) {
@@ -471,7 +487,7 @@
                                 self.httpRequest.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
                             }
                         },
-                        events      : {
+                        events          : {
                             readystatechange: function (event, self) {
                                 if (ajax.requests.isConflict(self.id) !== false) {
                                     if (event.target) {
@@ -510,7 +526,7 @@
                                 }
                             }
                         },
-                        parse       : function (response){
+                        parse           : function (response){
                             var result = {
                                     original: response,
                                     parsed  : null
@@ -524,7 +540,7 @@
                                 return result;
                             }
                         },
-                        parseHeaders: function (headers) {
+                        parseHeaders    : function (headers) {
                             var result  = {
                                     _headers: headers,
                                     headers : {}
@@ -545,7 +561,7 @@
                             }
                             return result;
                         },
-                        callback    : function (callback, event) {
+                        callback        : function (callback, event) {
                             if (callback !== null) {
                                 system.handle(
                                     callback,
@@ -566,14 +582,14 @@
                                 );
                             }
                         },
-                        abort       : function () {
+                        abort           : function () {
                             if (this.httpRequest !== null) {
                                 if (typeof this.httpRequest.abort === 'function') {
                                     this.httpRequest.abort();
                                 }
                             }
                         },
-                        destroy     : function (self) {
+                        destroy         : function (self) {
                             clearTimeout(self.timerID);
                             ajax.requests.remove(self);
                         }
@@ -1891,7 +1907,10 @@
                                                                 { name: 'onBeforeAttach',   type: 'function',           value: null },
                                                                 { name: 'onAfterAttach',    type: 'function',           value: null },
                                                                 { name: 'extend',           type: ['array', 'object'],  value: null }]) !== false) {
+                            //Try get URL of script, like script is attached via tag.
                             parameters.src = system.resources.js.getCurrentSRC();
+                            //Try get URL of script, like it was inbuilt
+                            parameters.src = parameters.src === null ? external.inbuilt.get.js() : parameters.src;
                             if (parameters.src !== null) {
                                 if (modules.attach.unexpected.journal.modules.isIn(parameters.src) === false) {
                                     if (parameters.launch !== null) {
@@ -2282,7 +2301,7 @@
                 }
             }
         };
-        external        = {
+        external = {
             isReady     : function(){
                 return overhead.register.isReady(options.register.EXTERNAL_HISTROY);
             },
@@ -2341,11 +2360,14 @@
                     } else {
                         wrapper = new Function(content);
                         try {
+                            external.inbuilt.set.js(url);
                             wrapper.call(window);
+                            external.inbuilt.set.js(null);
                             system.handle(onLoad, null, 'external.embody', this);
                             return true;
                         } catch (e) {
                             logs.log('During initialization of resource: [' + url + '] happened error:/n/r' + logs.parseError(e), logs.types.WARNING);
+                            system.handle(onError, null, 'external.embody', this);
                             return false;
                         }
                     }
@@ -2354,7 +2376,9 @@
                     if (config.defaults.resources.USE_STORAGED === false) {
                         system.resources.css.connect(url, onLoad, onError);
                     } else {
+                        external.inbuilt.set.css(url);
                         system.resources.css.adoption(content, null, system.url.restoreFullURL(url));
+                        external.inbuilt.set.css(null);
                         system.handle(onLoad, null, 'external.embody', this);
                     }
                     return true;
@@ -2394,6 +2418,28 @@
                             }
                         }
                     );
+                }
+            },
+            inbuilt     : {
+                storage : {
+                    js  : null,
+                    css : null
+                },
+                set     : {
+                    js  : function (url) {
+                        external.inbuilt.storage.js = url;
+                    },
+                    css : function (url) {
+                        external.inbuilt.storage.css = url;
+                    },
+                },
+                get     : {
+                    js  : function () {
+                        return external.inbuilt.storage.js;
+                    },
+                    css : function () {
+                        return external.inbuilt.storage.css;
+                    },
                 }
             },
             repository  : {
@@ -3149,7 +3195,6 @@
                 }
             },
             register: {
-                //TODO: Add clear closed registers
                 settings: {
                     COMMON_STORAGE_NAME: 'FlexRegisterStorage'
                 },
@@ -4066,7 +4111,8 @@
                                 urls = e.stack.match(options.regs.urls.JS_URL);
                                 if (urls instanceof Array) {
                                     if (urls.length > 0) {
-                                        return urls[urls.length - 1];
+                                        //Exclude parent script (flex.core.js)
+                                        return urls[urls.length - 1].indexOf(options.files.CORE_URL) === -1 ? urls[urls.length - 1] : null;
                                     }
                                 }
                             }
