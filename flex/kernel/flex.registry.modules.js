@@ -13,6 +13,8 @@
         /// <var>Collection of flex libraries</var>
         flex.libraries = {
             /// <field type = 'function'>Basic events controller</field>
+            binds   : {  source: 'KERNEL::flex.binds.js',     },
+            /// <field type = 'function'>Basic events controller</field>
             events  : {  source: 'KERNEL::flex.events.js',     },
             /// <field type = 'function'>Collection of tools for management of DOM</field>
             html    : {  source: 'KERNEL::flex.html.js',      hash: 'HASHPROPERTY' },
@@ -47,8 +49,6 @@
                 areascroller: {  source: 'KERNEL::flex.ui.areascroller.js' },
                 /// <field type = 'function'>Controller of arearesizer</field>
                 arearesizer : {  source: 'KERNEL::flex.ui.arearesizer.js',    hash: 'HASHPROPERTY' },
-                /// <field type = 'function'>Controller of CSS modifications</field>
-                modifier    : { source: 'KERNEL::flex.ui.modifier.js', hash: 'HASHPROPERTY' },
             },
             presentation: {  source: 'program/presentation.js', hash: 'HASHPROPERTY' },
         };

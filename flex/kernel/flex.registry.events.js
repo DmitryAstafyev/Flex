@@ -1,4 +1,7 @@
-/// <reference path="flex.core.js" />
+/// <reference path='intellisense/flex.callers.node.intellisense.js' />
+/// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path="intellisense/flex.intellisense.js" />
 /*global flex*/
 /// <module>
 ///     <summary>

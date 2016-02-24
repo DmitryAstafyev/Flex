@@ -1,8 +1,10 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
-/// <reference path='intellisense/flex.libraries.intellisense.js' />
-/// <reference path="flex.core.js" />
+/// <reference path='intellisense/flex.callers.node.intellisense.js' />
+/// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path="intellisense/flex.intellisense.js" />
 /// <module>
 ///     <summary>
 ///         Basic events controller.
@@ -1010,28 +1012,36 @@
                         return result;
                     });
                     flex.callers.define.nodes('html.styles.apply',               function (styles) {
+                        var result = [];
                         StylesClass();
                         Array.prototype.forEach.call(this.target, function (target) {
                             result.push(_styles.apply(target, styles));
                         });
+                        return result;
                     });
                     flex.callers.define.nodes('html.styles.redraw',              function () {
+                        var result = [];
                         StylesClass();
                         Array.prototype.forEach.call(this.target, function (target) {
                             result.push(_styles.redraw(target));
                         });
+                        return result;
                     });
                     flex.callers.define.nodes('html.styles.addClass',            function (class_name) {
+                        var result = [];
                         StylesClass();
                         Array.prototype.forEach.call(this.target, function (target) {
                             result.push(_styles.addClass(target, class_name));
                         });
+                        return result;
                     });
                     flex.callers.define.nodes('html.styles.removeClass',         function (class_name) {
+                        var result = [];
                         StylesClass();
                         Array.prototype.forEach.call(this.target, function (target) {
                             result.push(_styles.removeClass(target, class_name));
                         });
+                        return result;
                     });
                     flex.callers.define.nodes('html.scroll.position',            function () {
                         var result = [];

@@ -1,8 +1,10 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
-/// <reference path='intellisense/flex.libraries.intellisense.js' />
-/// <reference path="flex.core.js" />
+/// <reference path='intellisense/flex.callers.node.intellisense.js' />
+/// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path="intellisense/flex.intellisense.js" />
 /// <module>
 ///     <summary>
 ///         Module control movement of some node on screen. Works only with position: absolute.
@@ -14,8 +16,8 @@
         var protofunction = function () { };
         protofunction.prototype = function () {
             /* Description
-            * data-flex-ui-window-move-container
-            * data-flex-ui-window-move-hook
+            * data-flex-ui-window-move-container="id"
+            * data-flex-ui-window-move-hook="id"
             * */
             var //Get modules
                 html            = flex.libraries.html.create(),

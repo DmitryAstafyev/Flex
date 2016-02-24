@@ -1,10 +1,10 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
 /*global flex*/
-/// <reference path='intellisense/flex.callers.object.intellisense.js' />
 /// <reference path='intellisense/flex.callers.node.intellisense.js' />
 /// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
-/// <reference path='intellisense/flex.intellisense.js' />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path="intellisense/flex.intellisense.js" />
 /// <module>
 ///     <summary>
 ///         Module control items box behavior 

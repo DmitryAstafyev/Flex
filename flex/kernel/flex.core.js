@@ -1,12 +1,9 @@
 // LICENSE
 // This file (core / module) is released under the BSD License. See [LICENSE] file for details.
-/// <reference path='intellisense/flex.libraries.intellisense.js' />
-/// <reference path='intellisense/flex.callers.object.intellisense.js' />
 /// <reference path='intellisense/flex.callers.node.intellisense.js' />
 /// <reference path='intellisense/flex.callers.nodes.intellisense.js' />
-/// <reference path="flex.registry.events.js" />
-/// <reference path="flex.events.js" />
-/// <reference path="flex.html.js" />
+/// <reference path='intellisense/flex.callers.object.intellisense.js' />
+/// <reference path="intellisense/flex.intellisense.js" />
 /// <module>
 ///     <summary>
 ///         Basic module of [flex].
@@ -85,7 +82,7 @@
                 settings    : {
                     /// <field type = 'boolean'>True - in all parsed CSS files will be done correction of paths (path like this "../step/step/some.some" will be corrected to "fullpath/step/step/some.some"</field>
                     CHECK_PATHS_IN_CSS      : { type: 'boolean',    value: false        },
-                    ATTACH_PATH_SIGNATURE   : { type: 'string',     value: 'PATH::'     },
+                    ATTACH_PATH_SIGNATURE   : { type: 'string',     value: 'ATTACH::'   },
                     KERNEL_PATH_SIGNATURE   : { type: 'string',     value: 'KERNEL::'   },
                 },
                 cache       : {
@@ -1061,7 +1058,7 @@
                     return null;
                 }
             },
-            wrappers: {
+            wrappers    : {
                 objects: function () {
                     wrappers.prototypes.add.object('forEach',   function (callback)             {
                         return oop.objects.forEach(this.target, callback);
@@ -2301,7 +2298,7 @@
                 }
             }
         };
-        external = {
+        external        = {
             isReady     : function(){
                 return overhead.register.isReady(options.register.EXTERNAL_HISTROY);
             },
@@ -4518,7 +4515,7 @@
                         } else {
                             if (typeof selector !== 'undefined') {
                                 if (typeof selector.nodeName === 'string') {
-                                    return new wrappers.constructors.node(node);
+                                    return new wrappers.constructors.node(selector);
                                 }
                             }
                         }
@@ -4563,7 +4560,7 @@
                                             });
                                             return new wrappers.constructors.nodes(nodes);
                                         } else if (typeof selector[0].nodeName === 'string') {
-                                            return new wrappers.constructors.nodes(nodes);
+                                            return new wrappers.constructors.nodes(selector);
                                         }
                                     }
                                 }
@@ -4813,8 +4810,8 @@
         oop.wrappers.objects();
         //Public methods and properties
         return {
-            init    : privates.init,
-            oop     : {
+            init            : privates.init,
+            oop             : {
                 objects     : {
                     copy        : privates.oop.objects.copy,
                     extend      : privates.oop.objects.extend,
@@ -4830,12 +4827,12 @@
                     get         : privates.oop.namespace.get,
                 }
             },
-            modules : {
+            modules         : {
                 attach: privates.modules.attach,
                 append: privates.modules.append
             },
-            unique  : privates.unique,
-            events  : {
+            unique          : privates.unique,
+            events          : {
                 DOM : {
                     add     : privates.events.DOM.add,
                     remove  : privates.events.DOM.remove,
@@ -4847,7 +4844,7 @@
                     remove  : privates.events.core.remove,
                 }
             },
-            overhead: {
+            overhead        : {
                 globaly: {
                     set: privates.overhead.globaly.set,
                     get: privates.overhead.globaly.get,
@@ -4864,10 +4861,10 @@
                     done: privates.overhead.register.done,
                 }
             },
-            ajax : {
+            ajax            : {
                 send : privates.ajax.send
             },
-            resources: {
+            resources       : {
                 parse   : {
                     css : {
                         stringify: privates.resources.parse.css.stringify
@@ -4884,30 +4881,30 @@
                     }
                 }
             },
-            localStorage : {
+            localStorage    : {
                 add     : privates.localStorage.add,
                 get     : privates.localStorage.get,
                 del     : privates.localStorage.del,
                 addJSON : privates.localStorage.addJSON,
                 getJSON : privates.localStorage.getJSON,
             },
-            system : {
+            system          : {
                 handle  : privates.system.handle,
                 url     : {
                     parse   : privates.system.url.parse,
                     restore : privates.system.url.restore
                 }
             },
-            logs: {
+            logs            : {
                 parseError  : privates.logs.parseError,
                 log         : privates.logs.log,
                 types       : privates.logs.types
             },
-            hashes  : {
+            hashes          : {
                 get     : privates.hashes.get,
                 update  : privates.hashes.update
             },
-            callers : {
+            callers         : {
                 node    : privates.callers.node,
                 nodes   : privates.callers.nodes,
                 array   : privates.callers.array,
