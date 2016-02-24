@@ -12,7 +12,7 @@
 /// </module>
 (function () {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         var protofunction       = function () { };
         protofunction.prototype = function () {
             var //Get modules
@@ -36,11 +36,11 @@
                         events          = null,
                         propertyName    = 'AnimationName',
                         platform        = '';
-                    if (typeof tempDOMElement.style.animationName === 'undefined') {
+                    if (tempDOMElement.style.animationName === void 0) {
                         try {
                             animation.eventData.forEach(function (element, index) {
-                                if (typeof tempDOMElement.style[animation.eventData[index].prefix               + propertyName] !== 'undefined' ||
-                                    typeof tempDOMElement.style[animation.eventData[index].prefix.toLowerCase() + propertyName] !== 'undefined') {
+                                if (tempDOMElement.style[animation.eventData[index].prefix               + propertyName] !== void 0 ||
+                                    tempDOMElement.style[animation.eventData[index].prefix.toLowerCase() + propertyName] !== void 0) {
                                     resultPrefix    = animation.eventData[index].prefix.toLowerCase();
                                     animationString = resultPrefix + 'Animation';
                                     events          = animation.eventData[index].events;
@@ -69,15 +69,15 @@
                     tempDOMElement = null;
                 },
                 attach      : function (element, event, handle, once, clear) {
-                    var element     = (typeof element   !== 'undefined' ? html.helpers.validateNode(element) : null),
+                    var element     = (element          !== void 0      ? html.helpers.validateNode(element) : null),
                         handle      = (typeof handle    === 'function'  ? handle    : null          ),
                         event       = (typeof event     === 'string'    ? event     : null          ),
                         once        = (typeof once      === 'boolean'   ? once      : false         ),
                         clear       = (typeof clear     === 'boolean'   ? clear     : false         ),
-                        id          = (typeof id        !== 'undefined' ? id        : flex.unique() ),
+                        id          = (id               !== void 0      ? id        : flex.unique() ),
                         DOMEvents   = events.DOMEvents();
                     if (flex.oop.objects.isValueIn([element, handle, event], null) === false) {
-                        if (typeof animation.eventData.events[event] !== 'undefined') {
+                        if (animation.eventData.events[event] !== void 0) {
                             if (clear !== false) {
                                 DOMEvents.clear(element, animation.eventData.events[event], true);
                             }
@@ -98,12 +98,12 @@
                     return false;
                 },
                 remove      : function (element, event, id) {
-                    var element     = (typeof element !== 'undefined' ? html.helpers.validateNode(element) : null),
-                        event       = (typeof event === 'string' ? event    : null),
-                        id          = (typeof id    === 'string' ? id       : null),
+                    var element     = (element      !== void 0      ? html.helpers.validateNode(element)    : null),
+                        event       = (typeof event === 'string'    ? event                                 : null),
+                        id          = (typeof id    === 'string'    ? id                                    : null),
                         DOMEvents   = events.DOMEvents();
                     if (flex.oop.objects.isValueIn([element, event, id], null) === false) {
-                        if (typeof animation.eventData.events[event] !== 'undefined') {
+                        if (animation.eventData.events[event] !== void 0) {
                             DOMEvents.extendedRemove({
                                 element : element,
                                 name    : animation.eventData.events[event],
@@ -117,7 +117,7 @@
                     return false;
                 },
                 processing  : function (_event, element, event, id, handle) {
-                    var element = (typeof element !== 'undefined'   ? html.helpers.validateNode(element) : null),
+                    var element = (element          !== void 0      ? html.helpers.validateNode(element) : null),
                         event   = (typeof event     === 'string'    ? event     : null),
                         id      = (typeof id        === 'string'    ? id        : null),
                         handle  = (typeof handle    === 'function'  ? handle    : null);
@@ -179,7 +179,7 @@
                     flex.logs.log("Transition's events aren't available on this browser", flex.logs.types.WARNING);
                 },
                 attach: function (element, event, handle, once) {
-                    var element     = (typeof element   !== 'undefined' ? html.helpers.validateNode(element) : null),
+                    var element     = (element          !== void 0      ? html.helpers.validateNode(element) : null),
                         handle      = (typeof handle    === "function"  ? handle    : null),
                         event       = (typeof event     === "string"    ? event     : null),
                         once        = (typeof once      === "boolean"   ? once      : false),
@@ -187,7 +187,7 @@
                         DOMEvents   = events.DOMEvents();
                     if (flex.oop.objects.isValueIn([element, handle, event], null) === false) {
                         if (transition.eventData !== null) {
-                            if (typeof transition.eventData.events[event] !== "undefined") {
+                            if (transition.eventData.events[event] !== void 0) {
                                 DOMEvents.extendedAdd({
                                     element : element,
                                     name    : transition.eventData.events[event],
@@ -208,13 +208,13 @@
                     return false;
                 },
                 remove: function (element, event, id) {
-                    var element     = (typeof element !== 'undefined' ? html.helpers.validateNode(element) : null),
+                    var element     = (element      !== void 0      ? html.helpers.validateNode(element) : null),
                         event       = (typeof event === "string"    ? event     : null),
                         id          = (typeof id    === "string"    ? id        : null),
                         DOMEvents   = events.DOMEvents();
                     if (flex.oop.objects.isValueIn([element, event, id], null) === false) {
                         if (transition.eventData !== null) {
-                            if (typeof transition.eventData["events"][event] !== "undefined") {
+                            if (transition.eventData["events"][event] !== void 0) {
                                 DOMEvents.extendedRemove({
                                     element : element,
                                     name    : transition.eventData.events[event],
@@ -231,7 +231,7 @@
                     return false;
                 },
                 processing: function (_event, element, event, id, handle) {
-                    var element     = (typeof element   !== 'undefined' ? html.helpers.validateNode(element) : null),
+                    var element     = (element          !== void 0      ? html.helpers.validateNode(element) : null),
                         event       = (typeof event     === "string"    ? event     : null),
                         id          = (typeof id        === "string"    ? id        : null),
                         handle      = (typeof handle    === "function"  ? handle    : null);

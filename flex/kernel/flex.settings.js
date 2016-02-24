@@ -10,7 +10,7 @@
             flex.init({
                 resources: {
                     MODULES         : [
-                        'flex.presentation'
+                        'flex.presentation', 'flex.binds'
                     ],
                     EXTERNAL        : [
                         { url: '/program/body.css'  },
@@ -53,7 +53,7 @@
             });
         },
         start = function () {
-            if (typeof flex !== 'undefined') {
+            if (flex !== void 0) {
                 init();
             } else {
                 setTimeout(start, 50);

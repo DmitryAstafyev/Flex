@@ -12,7 +12,7 @@
 /// </module>
 (function () {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         var protofunction = function () { };
         protofunction.prototype = function () {
             var instance    = null,
@@ -114,7 +114,7 @@
                             ///     [boolean]   touch  (optional) -> true - try find analog of touch event and attach it}</param>
                             /// <returns type="boolean">true if success and false if fail</returns>
                             function validate(parameters) {
-                                parameters.element  = typeof parameters.element !== 'undefined' ? parameters.element    : null;
+                                parameters.element  = parameters.element        !== void 0      ? parameters.element    : null;
                                 parameters.name     = typeof parameters.name    === 'string'    ? parameters.name       : null;
                                 parameters.handle   = typeof parameters.handle  === 'function'  ? parameters.handle     : null;
                                 parameters.id       = typeof parameters.id      === 'string'    ? parameters.id         : flex.unique();
@@ -150,7 +150,7 @@
                             /// <param name="event" type="string"       >Event name     </param>
                             /// <param name="element_id" type="string"  >ID of event    </param>
                             /// <returns type="boolean">true if success and false if fail</returns>
-                            var event               = typeof event !== 'undefined' ? event : tools.fixEvent(),
+                            var event               = event !== void 0 ? event : tools.fixEvent(),
                                 handles_storage     = storage.get(this, true),
                                 handles             = null,
                                 interaction         = flex.unique(),
@@ -238,13 +238,10 @@
                             ///     [string]    id     (optional) }</param>
                             /// <returns type="boolean">true if success and false if fail</returns>
                             function getIDByHandle(handle) {
-                                if (typeof handle[settings.HANDLE_EVENT_ID_PROPERTY] !== 'undefined') {
-                                    return handle[settings.HANDLE_EVENT_ID_PROPERTY];
-                                }
-                                return null;
+                                return handle[settings.HANDLE_EVENT_ID_PROPERTY] !== void 0 ? handle[settings.HANDLE_EVENT_ID_PROPERTY] : null;
                             };
                             function validate(parameters) {
-                                parameters.element  = typeof parameters.element !== 'undefined' ? parameters.element    : null;
+                                parameters.element  = parameters.element        !== void 0      ? parameters.element    : null;
                                 parameters.name     = typeof parameters.name    === 'string'    ? parameters.name       : null;
                                 parameters.handle   = typeof parameters.handle  === 'function'  ? parameters.handle     : null;
                                 parameters.id       = typeof parameters.id      === 'string'    ? parameters.id         : getIDByHandle(parameters.handle);
@@ -255,7 +252,7 @@
                                 handles         = null;
                             if (parameters.element !== null && parameters.name !== null) {
                                 if (parameters.id === null && parameters.handle !== null) {
-                                    if (typeof parameters.handle[settings.HANDLE_EVENT_ID_PROPERTY] !== 'undefined') {
+                                    if (parameters.handle[settings.HANDLE_EVENT_ID_PROPERTY] !== void 0) {
                                         parameters.id = parameters.handle[settings.HANDLE_EVENT_ID_PROPERTY];
                                     }
                                 }
@@ -538,8 +535,8 @@
                                     return event;
                                 };
                                 function getCoordinates(event, source) {
-                                    if (typeof source.clientX !== 'undefined') {
-                                        if (typeof source.pageX === 'undefined') {
+                                    if (source.clientX !== void 0) {
+                                        if (source.pageX === void 0) {
                                             event.flex.pageX = null;
                                             event.flex.pageY = null;
                                         }
@@ -556,17 +553,17 @@
                                         event.flex.pageX = null;
                                         event.flex.pageY = null;
                                     }
-                                    event.flex.clientX = (typeof source.clientX !== 'undefined' ? source.clientX : null);
-                                    event.flex.clientY = (typeof source.clientY !== 'undefined' ? source.clientY : null);
-                                    event.flex.offsetX = (typeof source.offsetX !== 'undefined' ? source.offsetX : (typeof source.layerX !== 'undefined' ? source.layerX : null));
-                                    event.flex.offsetY = (typeof source.offsetY !== 'undefined' ? source.offsetY : (typeof source.layerY !== 'undefined' ? source.layerY : null));
+                                    event.flex.clientX = (source.clientX !== void 0 ? source.clientX : null);
+                                    event.flex.clientY = (source.clientY !== void 0 ? source.clientY : null);
+                                    event.flex.offsetX = (source.offsetX !== void 0 ? source.offsetX : (source.layerX !== void 0 ? source.layerX : null));
+                                    event.flex.offsetY = (source.offsetY !== void 0 ? source.offsetY : (source.layerY !== void 0 ? source.layerY : null));
                                     return event;
                                 };
                                 function unificationStop(event) {
-                                    if (typeof event.preventDefault === 'undefined') {
+                                    if (event.preventDefault === void 0) {
                                         event.preventDefault = function () { try { this.returnValue = false; } catch (e) { } };
                                     }
-                                    if (typeof event.stopPropagation === 'undefined') {
+                                    if (event.stopPropagation === void 0) {
                                         event.stopPropagation = function () { try { this.cancelBubble = true; } catch (e) { } };
                                     }
                                     event.flex.stop = function () {
@@ -577,16 +574,16 @@
                                     return event;
                                 };
                                 function unificationTarget(event) {
-                                    if (typeof event.target === 'undefined') {
-                                        if (typeof event.srcElement !== 'undefined') {
+                                    if (event.target === void 0) {
+                                        if (event.srcElement !== void 0) {
                                             event.target = event.srcElement;
                                         } else {
                                             event.target = null;
                                         }
                                     }
                                     if (event.target !== null) {
-                                        if (typeof event.relatedTarget === 'undefined') {
-                                            if (typeof event.fromElement !== 'undefined') {
+                                        if (event.relatedTarget === void 0) {
+                                            if (event.fromElement !== void 0) {
                                                 if (event.fromElement === event.target) {
                                                     event.relatedTarget = event.toElement;
                                                 } else {
@@ -605,7 +602,7 @@
                                     return getCoordinates(event, event);
                                 };
                                 function unificationButtons(event) {
-                                    if (typeof event.which === 'undefined' && typeof event.button !== 'undefined') {
+                                    if (event.which === void 0 && event.button !== void 0) {
                                         event.flex.which    = (event.button & 1 ? 1 : (event.button & 2 ? 3 : (event.button & 4 ? 2 : 0)));
                                         event.flex.button   = event.button;
                                     }
@@ -622,7 +619,7 @@
                                     }
                                     return event;
                                 };
-                                if (typeof event.flex === 'undefined') {
+                                if (event.flex === void 0) {
                                     event = addContainer            (event);
                                     event = unificationStop         (event);
                                     event = unificationTarget       (event);

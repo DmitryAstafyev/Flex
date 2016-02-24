@@ -12,7 +12,7 @@
 /// </module>
 (function () {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         var protofunction = function () { };
         protofunction.prototype = function () {
             var //Get modules
@@ -262,7 +262,7 @@
                 node        : function (node) {
                     var selector = null;
                     if (node) {
-                        if (typeof node.parentNode !== 'undefined') {
+                        if (node.parentNode !== void 0) {
                             node = [node];
                         }
                         if (typeof node === 'string') {
@@ -421,7 +421,7 @@
                                 }
                                 return value;
                             };
-                            if (typeof something !== 'undefined') {
+                            if (something !== void 0) {
                                 if (typeof something === 'function' && !something.length) {
                                     something = something();
                                 }
@@ -741,7 +741,7 @@
                     add     : function (key, value) {
                         var storage = flex.overhead.globaly.get(settings.storage.VIRTUAL_STORAGE_GROUP, settings.storage.VIRTUAL_STORAGE_ID, {});
                         if (storage !== null) {
-                            if (typeof storage[key] === 'undefined') {
+                            if (storage[key] === void 0) {
                                 storage[key] = value;
                                 return true;
                             }
@@ -750,7 +750,7 @@
                     get     : function (key) {
                         var storage = flex.overhead.globaly.get(settings.storage.VIRTUAL_STORAGE_GROUP, settings.storage.VIRTUAL_STORAGE_ID, {});
                         if (storage !== null) {
-                            return (typeof storage[key] !== 'undefined' ? storage[key] : null);
+                            return (storage[key] !== void 0 ? storage[key] : null);
                         }
                         return null;
                     }

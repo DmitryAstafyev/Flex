@@ -10,7 +10,7 @@
 /// </module>
 (function() {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         flex.registry           = flex.registry || {};
         //Declaration of modules
         /// <var>Collection of flex events</var>

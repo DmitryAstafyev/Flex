@@ -8,7 +8,7 @@
 (function() {
     "use strict";
     /*TODO: remove settings*/
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         //Declaration of modules
         /// <var>Collection of flex libraries</var>
         flex.libraries = {

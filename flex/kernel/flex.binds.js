@@ -12,7 +12,7 @@
 /// </module>
 (function () {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         var protofunction = function () { };
         protofunction.prototype = function () {
             var objects     = null,
@@ -101,7 +101,7 @@
                                 return null;
                             },
                             isPropertyReady : function (property){
-                                return typeof this.binds[property] !== 'undefined' ? true : false;
+                                return this.binds[property] !== void 0 ? true : false;
                             },
                             destroy         : function (){
                                 if (Object.keys(this.binds).length === 0) {
@@ -291,7 +291,7 @@
                                 return result;
                             },
                             isAttrReady     : function (attr) {
-                                return typeof this.binds[attr] !== 'undefined' ? true : false;
+                                return this.binds[attr] !== void 0 ? true : false;
                             },
                             destroy         : function (){
                                 if (Object.keys(this.binds).length === 0) {
@@ -315,7 +315,7 @@
                     var storage = settings.attrs.STORAGE_PROPERTY,
                         value   = null;
                     if (attrs.cross.attach !== null) {
-                        if (typeof node !== 'undefined' && typeof attr === 'string' && typeof handle === 'function') {
+                        if (node !== void 0 && typeof attr === 'string' && typeof handle === 'function') {
                             if (node.nodeName) {
                                 if (!node[storage]) {
                                     //Node isn't listening

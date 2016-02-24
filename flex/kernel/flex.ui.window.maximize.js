@@ -12,7 +12,7 @@
 /// </module>
 (function () {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         var protofunction = function () { };
         protofunction.prototype = function () {
             /* Description

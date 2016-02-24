@@ -12,7 +12,7 @@
 /// </module>
 (function () {
     "use strict";
-    if (typeof flex !== 'undefined') {
+    if (flex !== void 0) {
         var protofunction = function () { };
         protofunction.prototype = function () {
             var select      = null,
@@ -50,7 +50,7 @@
                             data    : {},
                             get     : function (selector) {
                                 var data = cache.data;
-                                return (typeof data[selector] !== 'undefined' ? data[selector] : null);
+                                return (data[selector] !== void 0 ? data[selector] : null);
                             },
                             add     : function (selector, nodes) {
                                 var data = cache.data;
@@ -153,7 +153,7 @@
                         var result_node = null,
                             nodeName    = nodeName.toLowerCase(),
                             self        = this;
-                        if (typeof parent.childNodes !== "undefined") {
+                        if (parent.childNodes !== void 0) {
                             if (typeof parent.childNodes.length === "number") {
                                 Array.prototype.forEach.call(
                                     parent.childNodes,
@@ -187,7 +187,7 @@
                         var result_node = null,
                             nodeName    = nodeName.toLowerCase(),
                             self        = this;
-                        if (typeof parent.childNodes !== "undefined") {
+                        if (parent.childNodes !== void 0) {
                             if (typeof parent.childNodes.length === "number") {
                                 Array.prototype.forEach.call(
                                     parent.childNodes,
@@ -213,8 +213,8 @@
                         return null;
                     },
                     parentByAttr: function (child, attribute) {
-                        if (typeof child !== 'undefined' && typeof attribute !== 'undefined') {
-                            if (typeof child.parentNode !== 'undefined') {
+                        if (child !== void 0 && attribute !== void 0) {
+                            if (child.parentNode !== void 0) {
                                 if (child.parentNode !== null) {
                                     if (typeof child.parentNode.getAttribute === 'function') {
                                         if (attribute.value !== null) {
@@ -246,7 +246,7 @@
                         var height                  = 0,
                             width                   = 0,
                             bounding_client_rect    = null;
-                        if (typeof node.getBoundingClientRect !== "undefined") {
+                        if (node.getBoundingClientRect !== void 0) {
                             bounding_client_rect    = node.getBoundingClientRect();
                             height                  = bounding_client_rect.bottom - bounding_client_rect.top;
                             width                   = bounding_client_rect.right - bounding_client_rect.left;
@@ -256,7 +256,7 @@
                     nodeByOffset            : function (node) {
                         var height  = 0,
                             width   = 0;
-                        if (typeof node.offsetHeight !== "undefined") {
+                        if (node.offsetHeight !== void 0) {
                             height  = node.offsetHeight;
                             width   = node.offsetWidth;
                         }
@@ -347,7 +347,7 @@
                             imageObj = null;
                             return size;
                         };
-                        if (typeof image !== 'undefined') {
+                        if (image !== void 0) {
                             if (typeof image.naturalWidth === 'number') {
                                 return {
                                     width   : image.naturalWidth,
@@ -572,7 +572,7 @@
                     },
                     redraw          : function (node){
                         if (node){
-                            if (typeof node.style !== 'undefined'){
+                            if (node.style !== void 0) {
                                 node.style.display = 'none';
                                 node.style.display = '';
                                 return true;
@@ -683,7 +683,7 @@
                     deleteRule      : function (sheet, target, deep) {
                         function getIndex(self, target, sheet, deep) {
                             var result = null;
-                            if (typeof target !== 'undefined') {
+                            if (target !== void 0) {
                                 if (typeof target === 'string') {
                                     //selector
                                     if (deep === false && sheet !== null) {
@@ -742,14 +742,14 @@
                         return -1;
                     },
                     addClass        : function (node, name) {
-                        if (typeof node.className !== 'undefined') {
+                        if (node.className !== void 0) {
                             if (node.className.search(name) === -1) {
                                 node.className += name;
                             }
                         }
                     },
                     removeClass     : function (node, name) {
-                        if (typeof node.className !== 'undefined') {
+                        if (node.className !== void 0) {
                             if (node.className.search(name) !== -1) {
                                 node.className = node.className.replace(name, '');
                             }
@@ -770,7 +770,7 @@
                             var top     = 0,
                                 left    = 0;
                             while (node) {
-                                if (typeof node.offsetTop !== "undefined" && typeof node.offsetLeft !== "undefined") {
+                                if (node.offsetTop !== void 0 && node.offsetLeft !== void 0) {
                                     top     += parseFloat(node.offsetTop    );
                                     left    += parseFloat(node.offsetLeft   );
                                 }
@@ -870,7 +870,7 @@
                             node        = selector.first(node);
                         }
                         if (node !== null) {
-                            if (typeof node.parentNode !== 'undefined') {
+                            if (node.parentNode !== void 0) {
                                 return node;
                             }
                         }

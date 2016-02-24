@@ -115,7 +115,7 @@
                     var path    = path || '',
                         setting = null;
                     if (typeof section.content === 'object') {
-                        if (typeof section.content.type !== 'undefined' && typeof section.content.value !== 'undefined') {
+                        if (section.content.type !== void 0 && section.content.value !== void 0) {
                             setting = oop.namespace.get(path, settings);
                             if (getType(setting) === section.content.type) {
                                 section.parent[section.name] = setting;
@@ -317,7 +317,7 @@
                 storage     : {},
                 add         : function (request) {
                     var storage = ajax.requests.storage;
-                    if (typeof storage[request.id] === 'undefined') {
+                    if (storage[request.id] === void 0) {
                         storage[request.id] = request;
                         return true;
                     }
@@ -325,7 +325,7 @@
                 },
                 remove      : function (request) {
                     var storage = ajax.requests.storage;
-                    if (typeof storage[request.id] !== 'undefined') {
+                    if (storage[request.id] !== void 0) {
                         storage[request.id] = null;
                         delete storage[request.id];
                         return true;
@@ -333,7 +333,7 @@
                     return false;
                 },
                 isConflict  : function (id) {
-                    return typeof ajax.requests.storage[id] === 'undefined' ? false : true;
+                    return ajax.requests.storage[id] === void 0 ? false : true;
                 }
             },
             create      : function (id, url, method, parameters, callbacks, timeout, headers) {
@@ -566,7 +566,7 @@
                                         this.response,
                                         {
                                             id          : this.id,
-                                            event       : typeof event !== 'undefined' ? event : null,
+                                            event       : event !== void 0 ? event : null,
                                             headers     : this.responseHeaders,
                                             response    : this.response,
                                             parameters  : this.parameters,
@@ -767,7 +767,7 @@
                     /// <param name="object" type="Object">Object</param>
                     /// <returns type="String">Name of class</returns>
                     if (object === null) return null;
-                    if (object === undefined) return null;
+                    if (object === void 0) return null;
                     return Object.prototype.toString.call(object).slice(8, -1);
                 }
             },
@@ -823,8 +823,8 @@
                     ///     <param name="sources" type="Object">Object</param>
                     ///     <returns type="Object">New object</returns>
                     /// </signature>
-                    var exclusion = (oop.classes.of(exclusion) === 'Array' ? exclusion : []),
-                        target      = (target !== null ? (target !== undefined ? (typeof target === 'object' ? target : {}) : {}) : {}),
+                    var exclusion   = (oop.classes.of(exclusion) === 'Array' ? exclusion : []),
+                        target      = (target !== null ? (target !== void 0 ? (typeof target === 'object' ? target : {}) : {}) : {}),
                         sources     = (typeof sources === 'object' ? [sources] : (oop.classes.of(sources) === 'Array' ? sources : null));
                     if (sources !== null) {
                         Array.prototype.forEach.call(
@@ -984,7 +984,7 @@
                                             }
                                         }
                                     } else {
-                                        if (typeof property.value !== 'undefined') {
+                                        if (property.value !== void 0) {
                                             object[property.name] = property.value;
                                         } else {
                                             throw 'deny';
@@ -1174,7 +1174,7 @@
                 load        : function () {
                     function validate(data) {
                         for (var key in cache.storage.data) {
-                            if (typeof data[key] === 'undefined') {
+                            if (data[key] === void 0) {
                                 //It means that flex.core.js was updated (block cache)
                                 return false;
                             }
@@ -1254,7 +1254,7 @@
                     },
                     add         : function (url) {
                         if (typeof url === 'string') {
-                            if (typeof hashes.update.queue.journal[url] === 'undefined') {
+                            if (hashes.update.queue.journal[url] === void 0) {
                                 hashes.update.queue.journal [url] = true;
                                 hashes.update.queue.queue   [url] = { url: url, working : false };
                             }
@@ -1471,7 +1471,7 @@
                         parent  = parent || false;
                     for (var property in libraries) {
                         list.push({ name: (parent !== false ? parent + '.' + property : property) });
-                        if (typeof libraries[property] === 'object' && typeof libraries[property] !== 'undefined') {
+                        if (typeof libraries[property] === 'object' && libraries[property] !== void 0) {
                             if (libraries[property] !== null){
                                 if (typeof libraries[property].source !== 'string') {
                                     modules.registry.getList(
@@ -1488,7 +1488,7 @@
                 validate    : function (libraries, path) {
                     var path = typeof path === 'string' ? path : '';
                     for (var property in libraries) {
-                        if (typeof libraries[property] === 'object' && libraries[property] !== null && libraries[property] !== undefined) {
+                        if (typeof libraries[property] === 'object' && libraries[property] !== null && libraries[property] !== void 0) {
                             if (typeof libraries[property].source !== 'string') {
                                 modules.registry.validate(libraries[property], path + '.' + property);
                             } else {
@@ -1576,7 +1576,7 @@
                     /// <param name="parameters" type="Object">Object of module</param>
                     /// <returns type="boolean">true if success and false if fail</returns>
                     var storage = modules.storage.data;
-                    if (typeof storage[parameters.name] === 'undefined') {
+                    if (storage[parameters.name] === void 0) {
                         storage[parameters.name] = {
                             name            : parameters.name,
                             protofunction   : parameters.protofunction,
@@ -1596,7 +1596,7 @@
                     /// </summary>
                     /// <param name="name" type="string">Name of module</param>
                     /// <returns type="Object">Object of module</returns>
-                    return (typeof modules.storage.data[name] === 'undefined' ? null : modules.storage.data[name]);
+                    return (modules.storage.data[name] === void 0 ? null : modules.storage.data[name]);
                 },
                 pending : function () {
                     /// <summary>
@@ -1720,7 +1720,7 @@
                             constructor_storage = oop.namespace.get(parameters.name);
                             if (constructor_storage !== null && constructor_storage !== false) {
                                 //Check is library attached or not
-                                if (typeof constructor_storage.create === 'undefined') {
+                                if (constructor_storage.create === void 0) {
                                     //Save library data in storage
                                     if (modules.storage.add(parameters) !== false) {
                                         //Make constructor
@@ -1798,14 +1798,14 @@
                         done        : function (url, isModule) {
                             var consts  = modules.attach.unexpected.journal.consts,
                                 journal = overhead.globaly.get(options.storage.GROUP, (isModule ? consts.MODULES : consts.RESOURCES) + options.storage.UNEXPECTED_JOURNAL, {});
-                            if (journal[url] !== undefined) {
+                            if (journal[url] !== void 0) {
                                 journal[url] = true;
                             }
                         },
                         isIn        : function (url, isModule) {
                             var consts  = modules.attach.unexpected.journal.consts,
                                 journal = overhead.globaly.get(options.storage.GROUP, (isModule ? consts.MODULES : consts.RESOURCES) + options.storage.UNEXPECTED_JOURNAL, {});
-                            return journal[url] === undefined ? false : true;
+                            return journal[url] === void 0 ? false : true;
                         },
                         isReady     : function (isModule) {
                             var consts  = modules.attach.unexpected.journal.consts,
@@ -1976,7 +1976,7 @@
                                 constructor_storage = oop.namespace.get(parameters.name);
                                 if (constructor_storage !== null && constructor_storage !== false) {
                                     //Check is library attached or not
-                                    if (typeof constructor_storage.create === 'undefined') {
+                                    if (constructor_storage.create === void 0) {
                                         //Add protofunction
                                         parameters.protofunction            = parameters.constructor === null ? function(){} : parameters.constructor;
                                         parameters.protofunction.prototype  = parameters.module;
@@ -2265,7 +2265,7 @@
                         settings    = modules.registry.getSettings(name),
                         repository  = null;
                     if (settings !== null) {
-                        if (typeof settings.hash !== 'undefined') {
+                        if (settings.hash !== void 0) {
                             overhead.register.add(options.register.MODULES_HISTROY, modules.tools.clearName(name));
                             repository = modules.repository.get(modules.tools.fullName(name), settings.hash);
                             if (repository !== null) {
@@ -3083,12 +3083,12 @@
                     /// </signature>
                     var rewrite     = (typeof rewrite === "boolean" ? rewrite : true),
                         settings    = overhead.objecty.settings;
-                    if (typeof element === "object" && typeof property === "string" && typeof value !== "undefined") {
+                    if (typeof element === "object" && typeof property === "string" && value !== void 0) {
                         if (typeof element[settings.COMMON_STORAGE_NAME] !== "object") {
                             element[settings.COMMON_STORAGE_NAME] = {};
                         }
                         if (rewrite === false) {
-                            if (typeof element[settings.COMMON_STORAGE_NAME][property] === "undefined") {
+                            if (element[settings.COMMON_STORAGE_NAME][property] === void 0) {
                                 element[settings.COMMON_STORAGE_NAME][property] = value;
                             }
                         } else {
@@ -3121,13 +3121,13 @@
                     ///     <returns type="any">value</returns>
                     /// </signature>
                     var remove          = (typeof remove === "boolean" ? remove : false),
-                        default_value   = (typeof default_value !== "undefined" ? default_value : null),
+                        default_value   = (default_value !== void 0 ? default_value : null),
 						value           = null,
                         settings        = overhead.objecty.settings,
 						tools           = overhead.objecty.tools;
                     if (typeof element === "object" && typeof property === "string") {
                         if (typeof element[settings.COMMON_STORAGE_NAME] === "object") {
-                            if (typeof element[settings.COMMON_STORAGE_NAME][property] !== "undefined") {
+                            if (element[settings.COMMON_STORAGE_NAME][property] !== void 0) {
                                 value = element[settings.COMMON_STORAGE_NAME][property];
                                 if (remove === true) {
                                     element[settings.COMMON_STORAGE_NAME][property] = null;
@@ -3162,7 +3162,7 @@
 						tools       = overhead.objecty.tools;
                     if (typeof element === "object" && typeof property === "string") {
                         if (typeof element[settings.COMMON_STORAGE_NAME] === "object") {
-                            if (typeof element[settings.COMMON_STORAGE_NAME][property] !== "undefined") {
+                            if (element[settings.COMMON_STORAGE_NAME][property] !== void 0) {
                                 element[settings.COMMON_STORAGE_NAME][property] = null;
                                 tools.deleteAttribute(element, property);
                                 tools.clear(element);
@@ -3256,7 +3256,7 @@
                     /// <param name="onReadyHandle" type="function"     >onReady handle, handle, which will be fired on all items will be done</param>
                     /// <returns type="boolean">true / false</returns>
                     var name            = (typeof name === 'string' ? name : null),
-                        keys            = (keys instanceof Array ? keys : (typeof keys !== 'undefined' ? [keys] : null)),
+                        keys            = (keys instanceof Array ? keys : (keys !== void 0 ? [keys] : null)),
                         onReadyHandle   = (typeof onReadyHandle === 'function' ? onReadyHandle : null),
                         register        = null,
                         storage         = overhead.globaly.get(options.storage.GROUP, overhead.register.settings.COMMON_STORAGE_NAME, {});
@@ -3867,7 +3867,7 @@
                             //Not all browsers supports load event for CSS. That's why using <IMG> to emulate load event
                             link[settings.CSS_TIMER_PROPERTY] = setTimeout(
                                 function () {
-                                    if (typeof link[settings.CSS_TIMER_PROPERTY] !== 'undefined') {
+                                    if (link[settings.CSS_TIMER_PROPERTY] !== void 0) {
                                         var img = document.createElement("IMG");
                                         resetTimer(link, settings);
                                         events.DOM.add(
@@ -3886,7 +3886,7 @@
                                 link,
                                 'load',
                                 function (event) {
-                                    if (typeof link[settings.CSS_TIMER_PROPERTY] !== 'undefined') {
+                                    if (link[settings.CSS_TIMER_PROPERTY] !== void 0) {
                                         resetTimer(link, settings);
                                         system.handle(onLoad, url, 'system.resources.css.connect', this);
                                     }
@@ -3964,7 +3964,7 @@
                         ///     <param name="url"           type="string"   >URL of parent to correct paths in CSS text</param>
                         ///     <returns type="object">link to created node STYLE</returns>
                         /// </signature>
-                        var documentLink = documentLink !== null ? (typeof documentLink === "object" ? (typeof documentLink.body !== "undefined" ? documentLink : document) : document) : document,
+                        var documentLink    = documentLink !== null ? (typeof documentLink === "object" ? (documentLink.body !== void 0 ? documentLink : document) : document) : document,
                             style           = documentLink.createElement("style"),
                             url             = typeof url === 'string' ? url : null;
                         if (typeof cssText === 'string') {
@@ -4474,7 +4474,7 @@
                 /// </signature>
                 var type = type || 'LOGS';
                 if (console && logs.types[type]) {
-                    if (typeof console.log !== 'undefined') {
+                    if (console.log !== void 0) {
                         if (config.defaults.logs.SHOW.indexOf(type) !== -1) {
                             console.log('%c [' + type + ']' + '%c' + message, logs.rendering[type], logs.rendering.LOGS);
                             logs.callEvent(message, type);
@@ -4484,7 +4484,7 @@
             },
             callEvent: function (message, type) {
                 if (oop.namespace.get('flex.registry.events.system.logs') !== null) {
-                    if (typeof flex.registry.events.system.logs[type] !== 'undefined') {
+                    if (flex.registry.events.system.logs[type] !== void 0) {
                         events.core.fire(flex.registry.events.system.logs.GROUP, flex.registry.events.system.logs[type], message);
                     }
                 }
@@ -4513,7 +4513,7 @@
                                 return new wrappers.constructors.node(node);
                             }
                         } else {
-                            if (typeof selector !== 'undefined') {
+                            if (selector !== void 0) {
                                 if (typeof selector.nodeName === 'string') {
                                     return new wrappers.constructors.node(selector);
                                 }
@@ -4547,7 +4547,7 @@
                                 return new wrappers.constructors.nodes(nodes);
                             }
                         } else {
-                            if (typeof selector !== 'undefined') {
+                            if (selector !== void 0) {
                                 if (typeof selector.length === 'number') {
                                     if (selector.length > 0) {
                                         if (typeof selector[0] === 'string') {
@@ -4639,12 +4639,12 @@
                     add     : function (target, path, value) {
                         var steps = null,
                             proto = null;
-                        if (typeof target === 'string' && typeof path === 'string' && typeof value !== 'undefined') {
+                        if (typeof target === 'string' && typeof path === 'string' && value !== void 0) {
                             if (wrappers.prototypes[target]) {
                                 steps = path.split('.');
                                 proto = wrappers.prototypes[target];
                                 steps.forEach(function (property, index) {
-                                    if (typeof proto[property] === 'undefined') {
+                                    if (proto[property] === void 0) {
                                         if (index === steps.length - 1) {
                                             proto[property] = value;
                                         } else {
