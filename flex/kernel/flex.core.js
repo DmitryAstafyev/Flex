@@ -769,6 +769,26 @@
                     if (object === null) return null;
                     if (object === void 0) return null;
                     return Object.prototype.toString.call(object).slice(8, -1);
+                },
+                create  : function (parameters) {
+                    ///     <summary>
+                    ///         Create instance of class with closed variables
+                    ///     </summary>
+                    ///     <param name="parameters"    type="object">Parameters of class:  &#13;&#10;
+                    ///     {   [function]              constr,                             &#13;&#10;
+                    ///         [object]                privates,                           &#13;&#10;
+                    ///         [function || object]    prototype                           &#13;&#10;
+                    ///     }</param>
+                    ///     <returns type="object">Instance of class</returns>
+                    var constr      = typeof parameters.constr  === 'function'  ? parameters.constr     : function () { },
+                        privates    = parameters.privates       !== void 0      ? parameters.privates   : null,
+                        prototype   = parameters.prototype      !== void 0      ? parameters.prototype  : {};
+                    if (!(this instanceof oop.classes.create)) {
+                        constr.prototype = typeof prototype === 'function' ? prototype.call(privates) : prototype;
+                        return new constr();
+                    } else {
+                        throw Error('Method [flex.oop.classes.create] cannot be used with derective NEW');
+                    }
                 }
             },
             objects     : {
@@ -4687,8 +4707,8 @@
         };
         //Private part
         privates        = {
-            init    : config.init,
-            oop     : {
+            init            : config.init,
+            oop             : {
                 objects     : {
                     copy        : oop.objects.copy,
                     extend      : oop.objects.extend,
@@ -4697,19 +4717,20 @@
                     isValueIn   : oop.objects.isValueIn,
                 },
                 classes     : {
-                    of          : oop.classes.of
+                    of      : oop.classes.of,
+                    create  : oop.classes.create
                 },
                 namespace   : {
                     create      : oop.namespace.create,
                     get         : oop.namespace.get,
                 }
             },
-            modules : {
+            modules         : {
                 attach : modules.attach.safely,
                 append : modules.attach.unexpected.safely
             },
-            unique  : IDs.id,
-            events  : {
+            unique          : IDs.id,
+            events          : {
                 DOM : {
                     add     : events.DOM.add,
                     remove  : events.DOM.remove,
@@ -4721,7 +4742,7 @@
                     remove  : events.core.remove,
                 }
             },
-            overhead: {
+            overhead        : {
                 globaly: {
                     set: overhead.globaly.set,
                     get: overhead.globaly.get,
@@ -4738,15 +4759,15 @@
                     done: overhead.register.done,
                 }
             },
-            ajax : {
+            ajax            : {
                 send : ajax.create
             },
-            logs: {
+            logs            : {
                 parseError  : logs.parseError,
                 log         : logs.log,
                 types       : logs.types
             },
-            callers: {
+            callers         : {
                 node    : wrappers.callers.node,
                 nodes   : wrappers.callers.nodes,
                 array   : wrappers.callers.array,
@@ -4762,7 +4783,7 @@
                     boolean : wrappers.prototypes.add.boolean,
                 }
             },
-            resources: {
+            resources       : {
                 parse   : {
                     css : {
                         stringify: parsing.css.stringify
@@ -4779,21 +4800,21 @@
                     }
                 }
             },
-            system  : {
+            system          : {
                 handle  : system.handle,
                 url     : {
                     parse   : system.url.parse,
                     restore : system.url.restoreFullURL
                 }
             },
-            localStorage: {
+            localStorage    : {
                 add     : system.localStorage.set,
                 get     : system.localStorage.get,
                 del     : system.localStorage.del,
                 addJSON : system.localStorage.setJSON,
                 getJSON : system.localStorage.getJSON,
             },
-            hashes: {
+            hashes          : {
                 get     : hashes.get,
                 update  : hashes.update.add
             }
@@ -4820,7 +4841,8 @@
                     isValueIn   : privates.oop.objects.isValueIn,
                 },
                 classes     : {
-                    of          : privates.oop.classes.of
+                    of      : privates.oop.classes.of,
+                    create  : privates.oop.classes.create
                 },
                 namespace   : {
                     create      : privates.oop.namespace.create,
