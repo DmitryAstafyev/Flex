@@ -27,6 +27,7 @@
             ajax            = {},
             events          = {},
             oop             = {},
+            arrays          = {},
             privates        = {},
             hashes          = {},
             cache           = {},
@@ -40,8 +41,8 @@
             wrappers        = {},
             logs            = {};
         config          = {
-            defaults : {
-                resources   :{
+            defaults    : {
+                resources   : {
                     USE_STORAGED    : { type: 'boolean',    value: true },
                     MODULES         : { type: 'array',      value: []   },
                     EXTERNAL        : { type: 'array',      value: []   },
@@ -101,9 +102,9 @@
                 },
                 logs        : {
                     SHOW: { type: 'array', value: ['CRITICAL', 'LOGICAL', 'WARNING'] }
-                }
+                },
             },
-            init    : function (settings) {
+            init        : function (settings) {
                 function validate(section, settings, path) {
                     function getType(property) {
                         if (property instanceof Array) {
@@ -1076,6 +1077,85 @@
                         return false;
                     }
                     return null;
+                },
+                getByPath       : function (target, path) {
+                    ///     <summary>Get property by path</summary>
+                    ///     <param name="target"    type="object"   >Object</param>
+                    ///     <param name="path"      type="any"      >Path to property</param>
+                    ///     <returns type="any">Final value or UNDEFINED</returns>
+                    var target      = typeof target     === 'object'    ? target    : null,
+                        path        = typeof path       === 'string'    ? path      : (path instanceof Array ? path : null),
+                        steps       = null,
+                        errors      = {
+                            NO_BY_PATH: 'NO_BY_PATH'
+                        },
+                        result      = target,
+                        finished    = false;
+                    if (target !== null && path !== null) {
+                        steps = path instanceof Array ? path : path.split('.');
+                        try {
+                            steps.forEach(function (step) {
+                                if (result[step] !== void 0) {
+                                    result = result[step];
+                                } else {
+                                    throw errors.NO_BY_PATH;
+                                }
+                            });
+                            finished = true;
+                        } catch (e) {
+                            if (e !== errors.NO_BY_PATH) {
+                                throw e;
+                            }
+                        }
+                    }
+                    return finished ? result : void 0;
+                },
+                findBy          : function (target, path, value, multiple) {
+                    /// <signature>
+                    ///     <summary>Search defined value in properties of object</summary>
+                    ///     <param name="target"    type="object"   >Object</param>
+                    ///     <param name="path"      type="any"      >Path to property</param>
+                    ///     <param name="value"     type="any"      >Compared value</param>
+                    ///     <returns type="any">Match(s)</returns>
+                    /// </signature>
+                    /// <signature>
+                    ///     <summary>Search defined value in properties of object</summary>
+                    ///     <param name="target"    type="object"   >Object</param>
+                    ///     <param name="path"      type="any"      >Path to property</param>
+                    ///     <param name="value"     type="any"      >Compared value</param>
+                    ///     <param name="multiple"  type="boolean"  >True - return all matches; False - return only first</param>
+                    ///     <returns type="any">Match(s)</returns>
+                    /// </signature>
+                    var target      = typeof target     === 'object'    ? target    : null,
+                        path        = typeof path       === 'string'    ? path      : null,
+                        multiple    = typeof multiple   === 'boolean'   ? multiple  : false,
+                        result      = multiple ? [] : null,
+                        errors      = {
+                            FOUND       : '1'
+                        };
+                    if (target !== null && path !== null) {
+                        path = path.split('.');
+                        try {
+                            oop.objects.forEach(target, function (property, _value) {
+                                var _result = oop.objects.getByPath(_value, path);
+                                if (_result !== void 0) {
+                                    if (_result === value) {
+                                        if (multiple) {
+                                            result.push(_value);
+                                        } else {
+                                            result = _value;
+                                            throw errors.FOUND;
+                                        }
+                                    }
+                                }
+                            });
+                        } catch (e) {
+                            if (e !== errors.FOUND) {
+                                throw e;
+                            }
+                        }
+                    }
+                    return result;
                 }
             },
             wrappers    : {
@@ -1094,6 +1174,68 @@
                     });
                     wrappers.prototypes.add.object('isValueIn', function (value, deep)          {
                         return oop.objects.isValueIn(this.target, value, deep);
+                    });
+                    wrappers.prototypes.add.object('getByPath', function (path) {
+                        return oop.objects.getByPath(this.target, path);
+                    });
+                    wrappers.prototypes.add.object('findBy', function (path, value, multiple) {
+                        return oop.objects.findBy(this.target, path, value, multiple);
+                    });
+                }
+            }
+        };
+        arrays          = {
+            findBy: function (target, path, value, multiple) {
+                /// <signature>
+                ///     <summary>Search defined value in items of array (if items are objects)</summary>
+                ///     <param name="target"    type="array"    >Array of objects</param>
+                ///     <param name="path"      type="any"      >Path to property</param>
+                ///     <param name="value"     type="any"      >Compared value</param>
+                ///     <returns type="any">Match(s)</returns>
+                /// </signature>
+                /// <signature>
+                ///     <summary>Search defined value in items of array (if items are objects)</summary>
+                ///     <param name="target"    type="array"    >Array of objects</param>
+                ///     <param name="path"      type="any"      >Path to property</param>
+                ///     <param name="value"     type="any"      >Compared value</param>
+                ///     <param name="multiple"  type="boolean"  >True - return all matches; False - return only first</param>
+                ///     <returns type="any">Match(s)</returns>
+                /// </signature>
+                var target      = target instanceof Array           ? target    : null,
+                    path        = typeof path       === 'string'    ? path      : null,
+                    multiple    = typeof multiple   === 'boolean'   ? multiple  : false,
+                    result      = multiple ? [] : null,
+                    errors      = {
+                        FOUND       : '1'
+                    };
+                if (target !== null && path !== null) {
+                    path = path.split('.');
+                    try {
+                        target.forEach(function (item) {
+                            var _result = oop.objects.getByPath(item, path);
+                            if (_result !== void 0) {
+                                if (_result === value) {
+                                    if (multiple) {
+                                        result.push(item);
+                                    } else {
+                                        result = item;
+                                        throw errors.FOUND;
+                                    }
+                                }
+                            }
+                        });
+                    } catch (e) {
+                        if (e !== errors.FOUND) {
+                            throw e;
+                        }
+                    }
+                }
+                return result;
+            },
+            wrappers: {
+                array: function () {
+                    wrappers.prototypes.add.array('findBy', function (path, value, multiple) {
+                        return arrays.findBy(this.target, path, value, multiple);
                     });
                 }
             }
@@ -4828,7 +4970,8 @@
         //Build wrappers
         wrappers.build();
         //Add wrappers
-        oop.wrappers.objects();
+        oop.    wrappers.objects();
+        arrays. wrappers.array  ();
         //Public methods and properties
         return {
             init            : privates.init,
