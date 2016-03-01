@@ -342,37 +342,60 @@
                                 size    : Size.node(nodes.content)
                             },
                             tab             = {
-                                selected: tabs.getCurrentTab(nodes, true),
-                                current : 0,
-                                count   : 0
+                                selected    : tabs.getCurrentTab(nodes, true),
+                                current     : 0,
+                                itemsInTab  : 0,
+                                count       : 1
+                            },
+                            cache           = {
+                                items       : {},
+                                brs         : {}
                             };
                         if (parameters.items) {
                             tabs.reset.visibility(parameters);
+                            cache.items[tab.current]    = [];
+                            cache.brs[tab.current]      = [];
                             parameters.items.forEach(function (element, index) {
                                 var size = render.size.get(element.item);
                                 common.width    += size.width;
                                 common.row      = (common.row < size.height ? size.height : common.row);
-                                tab.count       += (tab.current === 0 ? 1 : 0);
+                                tab.itemsInTab  += (tab.current === 0 ? 1 : 0);
                                 if (common.width > common.size.width) {
                                     common.width    = size.width;
                                     common.height   += common.row;
                                     common.row      = size.height;
+                                    cache.brs[tab.current].push(parameters.items[index - 1].br);
                                     if (tab.current === tab.selected) {
                                         if (parameters.items[index - 1]) {
                                             parameters.items[index - 1].br.style.display = '';
                                         }
                                     }
                                 }
+                                cache.items[tab.current].push(element.item);
                                 if (common.height + common.row > common.size.height) {
-                                    tab.count       += (tab.current === 0 ? -1 : 0);
-                                    tab.current     += 1;
-                                    common.height   = 0;
+                                    cache.items[tab.current].pop();
+                                    tab.itemsInTab              += (tab.current === 0 ? -1 : 0);
+                                    tab.count                   += 1;
+                                    tab.current                 += 1;
+                                    common.height               = 0;
+                                    cache.items[tab.current]    = [];
+                                    cache.brs[tab.current]      = [];
+                                    cache.items[tab.current].push(element.item);
                                 }
                                 if (tab.current !== tab.selected) {
                                     element.item.style.display  = 'none';
                                 }
                             });
-                            flex.overhead.objecty.set(nodes.container, settings.storage.tabs.ITEMS_COUNT, tab.count, true);
+                            if (tab.selected >= tab.count) {
+                                tab.selected = tab.count - 1;
+                                cache.items[tab.selected].forEach(function (item) {
+                                    item.style.display = '';
+                                });
+                                cache.brs[tab.selected].forEach(function (br) {
+                                    br.style.display = '';
+                                });
+                            }
+                            flex.overhead.objecty.set(nodes.container, settings.storage.tabs.ITEMS_COUNT, tab.itemsInTab, true);
                             tabs.buttons.update(parameters, nodes);
                         }
                     },
